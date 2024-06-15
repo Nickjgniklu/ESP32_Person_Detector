@@ -4,7 +4,7 @@
 #include "esp_camera.h"
 #include <MobileNetV2.h>
 #include <all_ops_resolver.h>
-#include "tench.h"
+#include "springer.h"
 #include "tensorflow/lite/micro/tflite_bridge/micro_error_reporter.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/schema/schema_generated.h"
@@ -104,8 +104,8 @@ void tearDown(void)
 void test_model(void)
 {
     initTFInterpreter();
-    uint raw_image_size = 96 * 96 * 3;
-    memcpy(input->data.uint8, tench_image, raw_image_size);
+    uint raw_image_size = 240 * 240 * 3;
+    memcpy(input->data.uint8, springer_image, raw_image_size);
 
     int start = millis();
     error_reporter->Report("Invoking.");
@@ -122,7 +122,7 @@ void test_model(void)
 
     TfLiteTensor *output = interpreter->output(0);
     uint result = oneHotDecode(output);
-    TEST_ASSERT_EQUAL_UINT(0, result);
+    TEST_ASSERT_EQUAL_UINT(217, result);
 }
 
 int runUnityTests(void)

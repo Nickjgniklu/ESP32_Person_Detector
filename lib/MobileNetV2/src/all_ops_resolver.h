@@ -59,4 +59,6 @@
     resolver_name.AddSub();                                   \
     resolver_name.AddSvdf();                                  \
     resolver_name.AddTanh();                                  \
+    resolver_name.AddResizeBilinear();                        \
+    resolver_name.AddResizeNearestNeighbor();                 \
     resolver_name.AddUnpack();
