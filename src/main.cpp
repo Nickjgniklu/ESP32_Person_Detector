@@ -5,6 +5,7 @@
 #include "wifikeys.h"
 #include <FreeRTOS.h>
 #include "camera_config.h"
+#include "MjpegStreamState.h"
 
 typedef struct
 {
@@ -84,24 +85,20 @@ void setupWifi()
   ESP_LOGI("WIFI_SETUP", "IP Address: %s", WiFi.localIP().toString().c_str());
   delay(5000);
 }
-size_t frame_index = 0;
-bool send_boundary = true;
-bool send_header = false;
+
 const char BOUNDARY[] = "\r\n--123456789000000000000987654321\r\n";
 const int bdrLen = strlen(BOUNDARY);
-uint8_t *currentSteamingImageBuffer;
-size_t currentSteamingImageSize;
-uint timeOfLastFrame = 0;
-bool frame_available = false;
-
-; // TODO gt this
 
 void setupServer()
 {
   server.on("/mjpeg", HTTP_GET, [](AsyncWebServerRequest *request)
             {
+              //TODO create some object here to persist the state of the stream
+              //to allow for multiple streams
+              MjpegStreamState* state = new MjpegStreamState();
+
               AsyncWebServerResponse *response = request->beginChunkedResponse("multipart/x-mixed-replace; boundary=123456789000000000000987654321", 
-              [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t
+              [state](uint8_t *buffer, size_t maxLen, size_t index) -> size_t
               {
   //Write up to "maxLen" bytes into "buffer" and return the amount written.
   //index equals the amount of bytes that have been already sent
@@ -112,7 +109,7 @@ void setupServer()
   //return RESPONSE_TRY_AGAIN results in a slow try again could possible
   //may beable to tune speed by sending header image and border all at once
   const size_t chunk_size = std::min(static_cast<size_t>(5000), maxLen);  //we need to read out of the image buffer
-if(send_boundary){
+if(state->send_boundary){
     if (maxLen < bdrLen)
     {
     //hopefully this does not happen... but just incase try again later
@@ -120,26 +117,26 @@ if(send_boundary){
     }
     ESP_LOGI("MJPEG STREAM", "Sending boundary");
     memcpy(buffer, BOUNDARY, bdrLen);
-    send_boundary = false;
+    state->send_boundary = false;
     return bdrLen;
   }
   JpegImage receivedItem;
 
   //if i can receive the queue track with globals
-  if (!frame_available && xQueueReceive(mjpegQueue, &receivedItem, 0) == pdPASS) {
-        ESP_LOGI("MJPEG STREAM", "time since last frame %d", millis() - timeOfLastFrame);
-        timeOfLastFrame = millis();
+  if (!state->frame_available && xQueueReceive(mjpegQueue, &receivedItem, 0) == pdPASS) {
+        ESP_LOGI("MJPEG STREAM", "time since last frame %d", millis() - state->timeOfLastFrame);
+        state->timeOfLastFrame = millis();
         // Process the received item
         ESP_LOGI("MJPEG STREAM", "Found frame %d size", receivedItem.length);
 
-        currentSteamingImageBuffer = receivedItem.data;
-        currentSteamingImageSize = receivedItem.length;
-        frame_available = true;
-        send_header = true;
+        state->currentSteamingImageBuffer = receivedItem.data;
+        state->currentSteamingImageSize = receivedItem.length;
+        state->frame_available = true;
+        state->send_header = true;
         // Remember to free the memory after processing
     }
   bool release_frame = false;
-  if(send_header){
+  if(state->send_header){
     ESP_LOGI("MJPEG STREAM", "Sending header for frame");
 
     char buf[32+43];
@@ -147,7 +144,7 @@ if(send_boundary){
     //send the header
     const char CTNTTYPE[] = "Content-Type: image/jpeg\r\nContent-Length: ";
 
-    sprintf(buf, "%s%d\r\n\r\n", CTNTTYPE,currentSteamingImageSize);
+    sprintf(buf, "%s%d\r\n\r\n", CTNTTYPE,state->currentSteamingImageSize);
     size_t header_length =strlen(buf);
     
     if(maxLen < header_length)
@@ -155,18 +152,18 @@ if(send_boundary){
       return RESPONSE_TRY_AGAIN;
     }
     memcpy(buffer, buf, header_length);
-    send_header = false;
+    state->send_header = false;
     return header_length;
   }
   //if we have a frame in the frame queue 
-  if(frame_available)
+  if(state->frame_available)
   {
     //copy the frame into the buffer
     size_t copy_size;
     
-    if(frame_index + chunk_size > currentSteamingImageSize)
+    if(state->frame_index + chunk_size > state->currentSteamingImageSize)
     {
-      copy_size = currentSteamingImageSize - frame_index;
+      copy_size = state->currentSteamingImageSize - state->frame_index;
       release_frame = true;
 
     }else
@@ -174,18 +171,18 @@ if(send_boundary){
       copy_size = chunk_size;
     }
 
-    ESP_LOGI("MJPEG STREAM", "Sending frame %d bytes at index %d , max was %d", copy_size, frame_index, maxLen);
-    memcpy(buffer, currentSteamingImageBuffer + frame_index, copy_size);
-    frame_index += copy_size;
+    ESP_LOGI("MJPEG STREAM", "Sending frame %d bytes at index %d , max was %d", copy_size, state->frame_index, maxLen);
+    memcpy(buffer, state->currentSteamingImageBuffer + state->frame_index, copy_size);
+    state->frame_index += copy_size;
 
     if(release_frame)
     {
     ESP_LOGI("MJPEG STREAM", "Finished send frame cleaning up");
 
-      frame_index = 0;
-      send_boundary = true;
-      frame_available = false;
-      free(currentSteamingImageBuffer);
+      state->frame_index = 0;
+      state->send_boundary = true;
+      state->frame_available = false;
+      free(state->currentSteamingImageBuffer);
 
       //release the frame
     }
@@ -199,9 +196,12 @@ if(send_boundary){
   ESP_LOGI("MJPEG STREAM", "Nothing ready to send");
 
   return RESPONSE_TRY_AGAIN; });
+  request->onDisconnect([state](){
+    ESP_LOGI("MJPEG STREAM", "Client disconnected");
+    delete state;
+  });
   response->addHeader("Access-Control-Allow-Origin", "*");
-  request->send(response);
-   });
+  request->send(response); });
   server.onNotFound(notFound);
   server.begin();
 }
