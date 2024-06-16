@@ -1,4 +1,5 @@
 #include "Arduino.h"
+#include <FS.h>
 #include <WiFiClient.h>
 #include <ConversionTools.h>
 #include "esp_camera.h"
