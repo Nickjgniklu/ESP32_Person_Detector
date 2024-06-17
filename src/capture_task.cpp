@@ -6,7 +6,8 @@
 OV2640 camera;
 typedef struct
 {
-  QueueHandle_t jpegQueue;
+  QueueHandle_t *jpegQueues;
+  uint jpegQueueCount;
 } CameraTaskParams_t;
 void setupCamera()
 {
@@ -25,27 +26,49 @@ void setupCamera()
 void cameraTask(void *pvParameters)
 {
   CameraTaskParams_t *params = (CameraTaskParams_t *)pvParameters;
-  QueueHandle_t jpegQueue = params->jpegQueue;
+  QueueHandle_t *jpegQueues = params->jpegQueues;
+  uint jpegQueueCount = params->jpegQueueCount;
   while (true)
   {
-    if (uxQueueSpacesAvailable(jpegQueue) > 0)
+    // check if any of the queues have space
+    bool anyQueueHasSpace = false;
+    for (uint i = 0; i < jpegQueueCount; i++)
+    {
+      if (uxQueueSpacesAvailable(jpegQueues[i]) > 0)
+      {
+        anyQueueHasSpace = true;
+        break;
+      }
+    }
+    if (anyQueueHasSpace)
     {
       camera.run();
 
-      size_t frame_size = camera.getSize();
-      uint8_t *frame_buffer = (uint8_t *)ps_malloc(frame_size);
-      memcpy(frame_buffer, camera.getfb(), frame_size);
-      JpegImage image;
-      image.data = frame_buffer;
-      image.length = frame_size;
-      if (xQueueSend(jpegQueue, &image, 0) != pdPASS)
+      for (uint i = 0; i < jpegQueueCount; i++)
       {
-        ESP_LOGE("CAMERA_TASK", "Failed to send frame to queue");
-        free(frame_buffer);
-      }
-      else
-      {
-        ESP_LOGI("CAMERA_TASK", "Sent frame to queue");
+        size_t frame_size = camera.getSize();
+        uint8_t *frame_buffer = (uint8_t *)ps_malloc(frame_size);
+        memcpy(frame_buffer, camera.getfb(), frame_size);
+        JpegImage image;
+        image.data = frame_buffer;
+        image.length = frame_size;
+        if (uxQueueSpacesAvailable(jpegQueues[i]) > 0)
+        {
+          if (xQueueSend(jpegQueues[i], &image, 0) != pdPASS)
+          {
+            ESP_LOGE("CAMERA_TASK", "Failed to send frame to queue");
+            free(frame_buffer);
+          }
+          else
+          {
+            ESP_LOGI("CAMERA_TASK", "Sent frame to queue %d", i);
+          }
+        }
+        else
+        {
+          ESP_LOGI("CAMERA_TASK", "Queue %d is full", i);
+          free(frame_buffer);
+        }
       }
     }
     else
@@ -55,13 +78,16 @@ void cameraTask(void *pvParameters)
     }
   }
 }
-/// @brief Start a camera task to fill a queue with JPEG images
-/// @param jpegQueue freeRTOS queue to fill with JPEG images
-void startCaptureTask(QueueHandle_t jpegQueue)
+/// @brief Start a camera task to fill a queues with JPEG images
+/// @param jpegQueues freeRTOS queues to fill with JPEG images
+/// @param jpegQueueCount number of queues
+void startCaptureTask(QueueHandle_t *jpegQueues, uint jpegQueueCount)
 {
   setupCamera();
   CameraTaskParams_t *params = (CameraTaskParams_t *)malloc(sizeof(CameraTaskParams_t));
-  params->jpegQueue = jpegQueue;
+  // Dynamically allocate memory for the queues
+  params->jpegQueues = jpegQueues;
+  params->jpegQueueCount = jpegQueueCount;
   xTaskCreate(
       cameraTask,    // Task function
       "Camera Task", // Name of the task (for debugging purposes)

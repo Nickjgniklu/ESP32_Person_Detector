@@ -8,8 +8,10 @@
 #include "JpegImage.h"
 #include "MjpegHandlers.h"
 #include "capture_task.h"
+#include "ai_task.h"
 QueueHandle_t mjpegQueue;
-
+QueueHandle_t AIjpegQueue;
+QueueHandle_t jpegQueues[2];
 AsyncWebServer server(80);
 
 // put function declarations here:
@@ -21,13 +23,14 @@ void setup()
 {
   // delay for 10 seconds to allow for serial monitor to connect
   delay(15000);
-  ESP_LOGI("SETUP", "Starting setup");
-  mjpegQueue = xQueueCreate(4, sizeof(JpegImage));
-
   Serial.begin(115200);
-  startCaptureTask(mjpegQueue);
+  ESP_LOGI("SETUP", "Starting setup");
+  mjpegQueue = jpegQueues[0] = xQueueCreate(4, sizeof(JpegImage));
+  AIjpegQueue = jpegQueues[1] = xQueueCreate(1, sizeof(JpegImage));
+  startCaptureTask(jpegQueues, 2);
   setupWifi();
   setupServer();
+  startAITask(AIjpegQueue);
 }
 
 void loop()
