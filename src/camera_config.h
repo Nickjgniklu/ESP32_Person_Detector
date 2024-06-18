@@ -62,6 +62,6 @@ camera_config_t esp32cam_ESPCam_config{
     .ledc_timer = LEDC_TIMER_0,
     .ledc_channel = LEDC_CHANNEL_0,
     .pixel_format = PIXFORMAT_JPEG,
-    .frame_size = FRAMESIZE_QVGA,
+    .frame_size = FRAMESIZE_240X240,
     .jpeg_quality = 25,
     .fb_count = 2};
