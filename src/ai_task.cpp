@@ -4,7 +4,7 @@
 #include <MobileNetV2.h>
 #include <all_ops_resolver.h>
 #include "esp_camera.h"
-
+#include <MobileNetClasses.h>
 #include "tensorflow/lite/micro/tflite_bridge/micro_error_reporter.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/schema/schema_generated.h"
@@ -111,8 +111,24 @@ void aiTask(void *pvParameters)
       for (int i = 0; i < interpreter->outputs_size(); i++)
       {
         TfLiteTensor *output = interpreter->output(i);
+        for (int j = 0; j < output->dims->size; j++)
+        {
+          ESP_LOGI("AI_TASK", "Output Shape %d", output->dims->data[j]);
+        }
+      }
+      std::vector<std::pair<int8_t, int>> value_index_pairs;
 
-        ESP_LOGI("AI_TASK", "Output Shape %d", output->dims->size);
+      TfLiteTensor *output = interpreter->output(0);
+      for (int i = 0; i < 1000; ++i)
+      {
+        value_index_pairs.push_back({output->data.int8[i], i});
+      }
+      std::sort(value_index_pairs.begin(), value_index_pairs.end(), [](const std::pair<int8_t, int> &a, const std::pair<int8_t, int> &b)
+                { return a.first > b.first; });
+
+      for (int i = 0; i < 5 && i < value_index_pairs.size(); ++i)
+      {
+        ESP_LOGI("AI_TASK", "Top %d: %s (%d)", i, classes[i].c_str(), value_index_pairs[i].first);
       }
     }
     else
@@ -126,9 +142,13 @@ void aiTask(void *pvParameters)
 /// @param jpegQueue freeRTOS queue if images to process
 void startAITask(QueueHandle_t jpegQueue)
 {
+  ESP_LOGI("AI_TASK", "Starting AI Task");
+  ESP_LOGI("AI_TASK", "Creating raw image buffer of size %d", raw_image_size);
   rawBuffer = (uint8_t *)ps_malloc(raw_image_size);
-
+  ESP_LOGI("AI_TASK", "Created raw image buffer of size %d", raw_image_size);
+  ESP_LOGI("AI_TASK", "Creating tensorflow interpreter");
   initTFInterpreter();
+  ESP_LOGI("AI_TASK", "Created tensorflow interpreter");
   AITaskParams_t *params = (AITaskParams_t *)malloc(sizeof(AITaskParams_t));
   params->jpegQueue = jpegQueue;
   xTaskCreate(
