@@ -8,9 +8,11 @@
 #include "tensorflow/lite/micro/tflite_bridge/micro_error_reporter.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/schema/schema_generated.h"
+#include <Message.h>
 typedef struct
 {
   QueueHandle_t jpegQueue;
+  QueueHandle_t messageQueue;
 } AITaskParams_t;
 
 uint raw_image_size = 240 * 240 * 3;
@@ -83,6 +85,7 @@ void aiTask(void *pvParameters)
 {
   AITaskParams_t *params = (AITaskParams_t *)pvParameters;
   QueueHandle_t jpegQueue = params->jpegQueue;
+  QueueHandle_t messageQueue = params->messageQueue;
   JpegImage image;
   ESP_LOGI("AI_TASK", "Starting AI Task");
   while (true)
@@ -128,8 +131,12 @@ void aiTask(void *pvParameters)
 
       for (int i = 0; i < 5 && i < value_index_pairs.size(); ++i)
       {
-        ESP_LOGI("AI_TASK", "Top %d: %s (%d)", i, classes[i].c_str(), value_index_pairs[i].first);
+        ESP_LOGI("AI_TASK", "Top %d: %s (%d)", i, classes[value_index_pairs[i].second].c_str(), value_index_pairs[i].first);
       }
+      Message message;
+      message.data = (char *)malloc(100);
+      message.length = sprintf(message.data, "Top %d: %s (%d):%d", 1, classes[value_index_pairs[0].second].c_str(), value_index_pairs[0].first, value_index_pairs[0].second);
+      xQueueSend(messageQueue, &message, 0);
     }
     else
     {
@@ -140,7 +147,7 @@ void aiTask(void *pvParameters)
 }
 /// @brief Start inference task to process JPEG images
 /// @param jpegQueue freeRTOS queue if images to process
-void startAITask(QueueHandle_t jpegQueue)
+void startAITask(QueueHandle_t jpegQueue, QueueHandle_t messageQueue)
 {
   ESP_LOGI("AI_TASK", "Starting AI Task");
   ESP_LOGI("AI_TASK", "Creating raw image buffer of size %d", raw_image_size);
@@ -151,6 +158,7 @@ void startAITask(QueueHandle_t jpegQueue)
   ESP_LOGI("AI_TASK", "Created tensorflow interpreter");
   AITaskParams_t *params = (AITaskParams_t *)malloc(sizeof(AITaskParams_t));
   params->jpegQueue = jpegQueue;
+  params->messageQueue = messageQueue;
   xTaskCreate(
       aiTask,    // Task function
       "AI Task", // Name of the task (for debugging purposes)

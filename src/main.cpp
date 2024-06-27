@@ -6,13 +6,17 @@
 #include <FreeRTOS.h>
 #include "MjpegStreamState.h"
 #include "JpegImage.h"
+#include "Message.h"
 #include "MjpegHandlers.h"
+#include "websocket_task.h"
 #include "capture_task.h"
 #include "ai_task.h"
 QueueHandle_t mjpegQueue;
 QueueHandle_t AIjpegQueue;
+QueueHandle_t messageQueue;
 QueueHandle_t jpegQueues[2];
 AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
 
 // put function declarations here:
 void notFound(AsyncWebServerRequest *request);
@@ -27,10 +31,12 @@ void setup()
   ESP_LOGI("SETUP", "Starting setup");
   mjpegQueue = jpegQueues[0] = xQueueCreate(4, sizeof(JpegImage));
   AIjpegQueue = jpegQueues[1] = xQueueCreate(1, sizeof(JpegImage));
+  messageQueue = xQueueCreate(1, sizeof(Message));
   startCaptureTask(jpegQueues, 2);
   setupWifi();
   setupServer();
-  startAITask(AIjpegQueue);
+  startAITask(AIjpegQueue, messageQueue);
+  startWebsocket(messageQueue, &ws, &server);
 }
 
 void loop()
