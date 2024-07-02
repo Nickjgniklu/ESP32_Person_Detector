@@ -60,7 +60,8 @@ void startWebsocketTask(void *pvParameters)
       if (xQueueReceive(messageQueue, &message, portMAX_DELAY))
       {
         ESP_LOGI("WEBSOCKET", "Sending message: %s", message.data);
-        ws->textAll((char *)message.data);
+        ws->textAll(message.data);
+        free(message.data);
       }
       else
       {
