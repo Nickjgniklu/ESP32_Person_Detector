@@ -9,6 +9,7 @@
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 #include <Message.h>
+#include "esp_task_wdt.h"
 typedef struct
 {
   QueueHandle_t jpegQueue;
@@ -18,7 +19,6 @@ typedef struct
 uint raw_image_size = 240 * 240 * 3;
 
 /// @brief holds rgb image data
-uint8_t *rawBuffer;
 namespace
 {
   tflite::ErrorReporter *error_reporter = nullptr;
@@ -95,13 +95,13 @@ void aiTask(void *pvParameters)
     {
       ESP_LOGI("AI_TASK", "Received image of size %d", image.length);
       ESP_LOGI("AI_TASK", "Image decompress started");
-      fmt2rgb888(image.data, image.length, PIXFORMAT_JPEG, rawBuffer);
+      fmt2rgb888(image.data, image.length, PIXFORMAT_JPEG, input->data.uint8);
       ESP_LOGI("AI_TASK", "Image decompressed");
       free(image.data);
-      memcpy(input->data.uint8, rawBuffer, raw_image_size);
-
+      delay(10); // feed watchdog
       ESP_LOGI("AI_TASK", "Model invoking started");
       uint start = millis();
+      esp_task_wdt_delete(xTaskGetCurrentTaskHandle());
       if (kTfLiteOk != interpreter->Invoke())
       {
         ESP_LOGE("AI_TASK", "Invoke failed.");
@@ -110,6 +110,7 @@ void aiTask(void *pvParameters)
       {
         ESP_LOGI("AI_TASK", "Invoke passed. Took : %d milliseconds", millis() - start);
       }
+      esp_task_wdt_add(xTaskGetCurrentTaskHandle());
 
       for (int i = 0; i < interpreter->outputs_size(); i++)
       {
@@ -150,21 +151,19 @@ void aiTask(void *pvParameters)
 void startAITask(QueueHandle_t jpegQueue, QueueHandle_t messageQueue)
 {
   ESP_LOGI("AI_TASK", "Starting AI Task");
-  ESP_LOGI("AI_TASK", "Creating raw image buffer of size %d", raw_image_size);
-  rawBuffer = (uint8_t *)ps_malloc(raw_image_size);
-  ESP_LOGI("AI_TASK", "Created raw image buffer of size %d", raw_image_size);
   ESP_LOGI("AI_TASK", "Creating tensorflow interpreter");
   initTFInterpreter();
   ESP_LOGI("AI_TASK", "Created tensorflow interpreter");
   AITaskParams_t *params = (AITaskParams_t *)malloc(sizeof(AITaskParams_t));
   params->jpegQueue = jpegQueue;
   params->messageQueue = messageQueue;
-  xTaskCreate(
+  xTaskCreatePinnedToCore(
       aiTask,    // Task function
       "AI Task", // Name of the task (for debugging purposes)
       8000,      // Stack size (bytes)
       params,    // Parameter to pass to the task
       1,         // Task priority
-      NULL       // Task handle
+      NULL,      // Task handle
+      1          // Run the on other core from wifi stuuff
   );
 }

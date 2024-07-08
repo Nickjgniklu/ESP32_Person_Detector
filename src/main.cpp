@@ -11,6 +11,7 @@
 #include "websocket_task.h"
 #include "capture_task.h"
 #include "ai_task.h"
+#include "save_task.h"
 QueueHandle_t mjpegQueue;
 QueueHandle_t AIjpegQueue;
 QueueHandle_t messageQueue;
@@ -37,6 +38,7 @@ void setup()
   setupServer();
   startAITask(AIjpegQueue, messageQueue);
   startWebsocket(messageQueue, &ws, &server);
+  startSaveTask(mjpegQueue);
 }
 
 void loop()
