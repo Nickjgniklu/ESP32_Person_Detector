@@ -27,18 +27,18 @@ void setupServer();
 void setup()
 {
   // delay for 10 seconds to allow for serial monitor to connect
-  delay(15000);
+  // delay(15000);
   Serial.begin(115200);
   ESP_LOGI("SETUP", "Starting setup");
   mjpegQueue = jpegQueues[0] = xQueueCreate(4, sizeof(JpegImage));
   AIjpegQueue = jpegQueues[1] = xQueueCreate(1, sizeof(JpegImage));
   messageQueue = xQueueCreate(1, sizeof(Message));
   startCaptureTask(jpegQueues, 2);
+  startSaveTask(mjpegQueue);
   setupWifi();
   setupServer();
   startAITask(AIjpegQueue, messageQueue);
   startWebsocket(messageQueue, &ws, &server);
-  startSaveTask(mjpegQueue);
 }
 
 void loop()

@@ -1,19 +1,73 @@
 #include "websocket_task.h"
 #include "Message.h"
-
+#include <ArduinoJson.h>
+#include "file_helpers.h"
 typedef struct
 {
   QueueHandle_t messageQueue;
   AsyncWebSocket *ws;
 
 } WebsocketTaskParams_t;
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
+void sendSdInfo(AsyncWebSocketClient *client)
+{
+  JsonDocument json;
+  json["responseType"] = "sdInfo";
+  // json["totalBytes"] = getTotalBytes();
+  // json["usedBytes"] = getUsedBytes();
+  // json["freeBytes"] = getFreeBytes();
+  json["totalFiles"] = 69; // getTotalFiles();
+  String output;
+
+  serializeJson(json, output);
+  char *outputC = (char *)malloc(output.length() + 1);
+  strcpy(outputC, output.c_str());
+  client->text(outputC);
+}
+
+void sendSystemInfo(AsyncWebSocketClient *client)
+{
+  JsonDocument json;
+  json["responseType"] = "systemInfo";
+  // json["heapSize"] = ESP.getFreeHeap();
+  // json["sdkVersion"] = ESP.getSdkVersion();
+  // json["chipModel"] = ESP.getChipModel();
+  // json["freeHeap"] = ESP.getFreeHeap();
+  // json["freePsram"] = ESP.getFreeHeap();
+  // json["psRamSize"] = ESP.getPsramSize();
+  json["uptimeMs"] = millis();
+
+  String output;
+
+  serializeJson(json, output);
+  // client->text(output.c_str());
+}
+
+void handleWebSocketMessage(AsyncWebSocketClient *client, void *arg, uint8_t *data, size_t len)
 {
   AwsFrameInfo *info = (AwsFrameInfo *)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT)
   {
     data[len] = 0;
     ESP_LOGI("WEBSOCKET", "Received message: '%s'", data);
+    JsonDocument json;
+    DeserializationError error = deserializeJson(json, data);
+    if (error)
+    {
+      ESP_LOGE("WEBSOCKET", "Received message not json: '%s'", data);
+      return;
+    }
+    if (json.containsKey("requestType") && json["requestType"] == "sdInfo")
+    {
+      sendSdInfo(client);
+    }
+    else if (json.containsKey("requestType") && json["requestType"] == "systemInfo")
+    {
+      sendSystemInfo(client);
+    }
+    else
+    {
+      ESP_LOGE("WEBSOCKET", "Received message does not contain 'message' key: '%s'", data);
+    }
   }
 }
 
@@ -30,7 +84,7 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
     Serial.printf("WebSocket client #%u disconnected\n", client->id());
     break;
   case WS_EVT_DATA:
-    handleWebSocketMessage(arg, data, len);
+    handleWebSocketMessage(client, arg, data, len);
     break;
   case WS_EVT_PONG:
   case WS_EVT_ERROR:
@@ -60,7 +114,10 @@ void startWebsocketTask(void *pvParameters)
       if (xQueueReceive(messageQueue, &message, portMAX_DELAY))
       {
         ESP_LOGI("WEBSOCKET", "Sending message: %s", message.data);
-        ws->textAll(message.data);
+        if (ws->count() != 0)
+        {
+          ws->textAll(message.data);
+        }
         free(message.data);
       }
       else

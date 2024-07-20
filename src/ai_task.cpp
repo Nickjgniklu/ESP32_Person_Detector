@@ -10,6 +10,7 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 #include <Message.h>
 #include "esp_task_wdt.h"
+#include <ArduinoJson.h>
 typedef struct
 {
   QueueHandle_t jpegQueue;
@@ -134,9 +135,20 @@ void aiTask(void *pvParameters)
       {
         ESP_LOGI("AI_TASK", "Top %d: %s (%d)", i, classes[value_index_pairs[i].second].c_str(), value_index_pairs[i].first);
       }
+
+      JsonDocument json;
+      json["responseType"] = "prediction";
+      json["topPredictionIndex"] = value_index_pairs[0].second;
+      json["topPredictionStrength"] = value_index_pairs[0].first;
+      json["topPredictionClassName"] = classes[value_index_pairs[0].second].c_str();
+      String serializedJson;
+
+      serializeJson(json, serializedJson);
+      size_t jsonLength = serializedJson.length() + 1;
       Message message;
-      message.data = (char *)malloc(100);
-      message.length = sprintf(message.data, "Top %d: %s (%d):%d", 1, classes[value_index_pairs[0].second].c_str(), value_index_pairs[0].first, value_index_pairs[0].second);
+      message.data = (char *)malloc(jsonLength);
+      memccpy(message.data, serializedJson.c_str(), 0, jsonLength);
+      message.length = jsonLength;
       xQueueSend(messageQueue, &message, 0);
     }
     else
