@@ -20,7 +20,7 @@ typedef struct
 void writeFile(fs::FS &fs, const char *path, uint8_t *data, size_t len)
 {
   ESP_LOGI(TAG, "Writing file: %s", path);
-
+  u_int32_t start = millis();
   File file = fs.open(path, FILE_WRITE);
   if (!file)
   {
@@ -29,7 +29,7 @@ void writeFile(fs::FS &fs, const char *path, uint8_t *data, size_t len)
   }
   if (file.write(data, len) == len)
   {
-    ESP_LOGI(TAG, "File written");
+    ESP_LOGI(TAG, "File of size %d written in %d ms", len, millis() - start);
   }
   else
   {
@@ -69,7 +69,7 @@ u64_t countFilesInRoot(fs::FS &fs)
 bool setupSdCard()
 {
   // Initialize SD card
-  if (!SD.begin(SD_CARD_PIN))
+  if (!SD.begin(SD_CARD_PIN, SPI, 40'000'000u))
   {
     ESP_LOGI(TAG, "Card Mount Failed");
     return false;
