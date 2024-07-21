@@ -15,13 +15,10 @@ void sendSdInfo(AsyncWebSocketClient *client)
   json["totalBytes"] = getTotalBytes();
   json["usedBytes"] = getUsedBytes();
   json["freeBytes"] = getFreeBytes();
-  // json["totalFiles"] =  getTotalFiles();
   String output;
 
   serializeJson(json, output);
-  char *outputC = (char *)malloc(output.length() + 1);
-  strcpy(outputC, output.c_str());
-  client->text(outputC);
+  client->text(output.c_str());
 }
 
 void sendSystemInfo(AsyncWebSocketClient *client)
