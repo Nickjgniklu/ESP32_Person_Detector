@@ -105,7 +105,11 @@ void saveTask(void *pvParameters)
       {
         ESP_LOGE(TAG, "Failed to obtain time");
       }
-      localTimeObtained = true;
+      else
+      {
+        ESP_LOGI(TAG, "Time obtained");
+        localTimeObtained = true;
+      }
     }
     if (!sdCardInitialized)
     {
