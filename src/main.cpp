@@ -13,11 +13,15 @@
 #include "ai_task.h"
 #include "save_task.h"
 QueueHandle_t mjpegQueue;
+QueueHandle_t saveJpegQueue;
 QueueHandle_t AIjpegQueue;
 QueueHandle_t messageQueue;
-QueueHandle_t jpegQueues[2];
+QueueHandle_t jpegQueues[3];
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
+const char *ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 0;
+const int daylightOffset_sec = 3600;
 
 // put function declarations here:
 void notFound(AsyncWebServerRequest *request);
@@ -29,14 +33,19 @@ void setup()
   // delay for 10 seconds to allow for serial monitor to connect
   // delay(15000);
   Serial.begin(115200);
+  delay(10000);
   ESP_LOGI("SETUP", "Starting setup");
   mjpegQueue = jpegQueues[0] = xQueueCreate(4, sizeof(JpegImage));
   AIjpegQueue = jpegQueues[1] = xQueueCreate(1, sizeof(JpegImage));
+  saveJpegQueue = jpegQueues[2] = xQueueCreate(2, sizeof(JpegImage));
+
   messageQueue = xQueueCreate(1, sizeof(Message));
-  startCaptureTask(jpegQueues, 2);
-  startSaveTask(mjpegQueue);
+  startCaptureTask(jpegQueues, 3);
+  startSaveTask(saveJpegQueue);
+
   setupWifi();
   setupServer();
+
   startAITask(AIjpegQueue, messageQueue);
   startWebsocket(messageQueue, &ws, &server);
 }
@@ -44,7 +53,7 @@ void setup()
 void loop()
 {
   // put your main code here, to run repeatedly:
-  delay(1000);
+  delay(50);
 }
 
 // put function definitions here:
@@ -66,6 +75,7 @@ void setupWifi()
   }
   ESP_LOGI("WIFI_SETUP", "IP Address: %s", WiFi.localIP().toString().c_str());
   delay(5000);
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 }
 
 void setupServer()

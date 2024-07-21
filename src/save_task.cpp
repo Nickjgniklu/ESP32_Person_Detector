@@ -4,9 +4,12 @@
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
+#include "time.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #define TAG "SAVE_TASK"
 #define SD_CARD_PIN 21
-static u64_t file_count = 0;
+struct tm timeInfo;
 
 typedef struct
 {
@@ -21,7 +24,7 @@ void writeFile(fs::FS &fs, const char *path, uint8_t *data, size_t len)
   File file = fs.open(path, FILE_WRITE);
   if (!file)
   {
-    ESP_LOGI(TAG, "Failed to open file for writing");
+    ESP_LOGI(TAG, "Failed to open file for writing: %s", path);
     return;
   }
   if (file.write(data, len) == len)
@@ -93,46 +96,51 @@ void saveTask(void *pvParameters)
   AITaskParams_t *params = (AITaskParams_t *)pvParameters;
   QueueHandle_t jpegQueue = params->jpegQueue;
   JpegImage image;
+  bool localTimeObtained = false;
   while (true)
   {
+    if (!localTimeObtained)
+    {
+      if (!getLocalTime(&timeInfo))
+      {
+        ESP_LOGE(TAG, "Failed to obtain time");
+      }
+      localTimeObtained = true;
+    }
     if (!sdCardInitialized)
     {
       sdCardInitialized = setupSdCard();
       if (sdCardInitialized)
       {
         ESP_LOGI(TAG, "SD Card initialized");
-        file_count = countFilesInRoot(SD);
-        ESP_LOGI(TAG, "File count: %d", file_count);
+
+        if (!getLocalTime(&timeInfo))
+        {
+          ESP_LOGE(TAG, "Failed to obtain time");
+        }
       }
       else
       {
         ESP_LOGE(TAG, "SD Card initialization failed");
+        delay(1000);
       }
     }
     else
     {
       if (xQueueReceive(jpegQueue, &image, 0) == pdTRUE)
       {
-        if (sdCardInitialized)
-        {
-          char filename[32];
-          sprintf(filename, "/image%d.jpg", file_count++);
-          ESP_LOGI(TAG, "Saving image to %s", filename);
+        char filename[48];
+        strftime(filename, sizeof(filename), "/%B %d %Y %H %M %S ", &timeInfo);
+        snprintf(filename + strlen(filename), sizeof(filename) - strlen(filename), "%03d.jpg", millis() % 1000);
+        ESP_LOGI(TAG, "Saving image to %s", filename);
 
-          writeFile(SD, filename, image.data, image.length);
-          free(image.data);
-        }
+        writeFile(SD, filename, image.data, image.length);
+        free(image.data);
+        delay(10);
       }
       else
       {
-        if (sdCardInitialized)
-        {
-          delay(10);
-        }
-        else
-        {
-          delay(1000);
-        }
+        delay(10);
       }
     }
   }

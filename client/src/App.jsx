@@ -3,9 +3,10 @@ import './App.css';
 
 function App() {
   const [message, setMessage] = useState('');
-  const [fileCount, setFileCount] = useState(0);
+  const [prediction, setPrediction] = useState('');
+  const [usedBytes, setUsedBytes] = useState(0);
   const [uptime, setUptime] = useState(0);
-  const host = '192.168.50.21'
+  const host = '192.168.50.23'
   const mjpegUrl = `http://${host}/mjpeg`;
   const wsUrl = `ws://${host}/ws`;
 
@@ -15,10 +16,10 @@ function App() {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.responseType === 'prediction') {
-        //setMessage(data);
+        setPrediction(data.topPredictionClassName);
       }
       if (data.responseType === 'sdInfo') {
-        setFileCount(data.totalFiles);
+        setUsedBytes(data.usedBytes);
       }
       if (data.responseType === 'systemInfo') {
         setUptime(data.uptimeMs);
@@ -43,8 +44,8 @@ function App() {
     <div className="App">
       <header className="App-header">
         <img src={mjpegUrl} alt="MJPEG Stream" />
-        <p>Message from WebSocket: {message}</p>
-        <p>File count: {fileCount}</p>
+        <p>prediction: {prediction}</p>
+        <p>usedBytes: {usedBytes}</p>
         <p>Uptime: {uptime}</p>
       </header>
     </div>
