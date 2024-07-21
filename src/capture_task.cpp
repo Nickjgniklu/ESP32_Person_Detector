@@ -47,7 +47,7 @@ void cameraTask(void *pvParameters)
       for (uint i = 0; i < jpegQueueCount; i++)
       {
         size_t frame_size = camera.getSize();
-        uint8_t *frame_buffer = (uint8_t *)ps_malloc(frame_size);
+        uint8_t *frame_buffer = (uint8_t *)malloc(frame_size);
         memcpy(frame_buffer, camera.getfb(), frame_size);
         JpegImage image;
         image.data = frame_buffer;
@@ -91,7 +91,7 @@ void startCaptureTask(QueueHandle_t *jpegQueues, uint jpegQueueCount)
   xTaskCreate(
       cameraTask,    // Task function
       "Camera Task", // Name of the task (for debugging purposes)
-      2048,          // Stack size (bytes)
+      4098,          // Stack size (bytes)
       params,        // Parameter to pass to the task
       1,             // Task priority
       NULL           // Task handle
