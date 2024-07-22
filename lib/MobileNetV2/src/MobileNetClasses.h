@@ -1,5 +1,5 @@
 #include <string>
-std::string classes[] = {
+String classes[] = {
     "tench, Tinca tinca",
     "goldfish, Carassius auratus",
     "great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias",

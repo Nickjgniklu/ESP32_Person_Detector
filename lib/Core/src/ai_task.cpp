@@ -10,7 +10,8 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 #include <Message.h>
 #include "esp_task_wdt.h"
-#include <ArduinoJson.h>
+#include "messages.h"
+#define TAG "AI_TASK"
 typedef struct
 {
   QueueHandle_t jpegQueue;
@@ -81,35 +82,49 @@ void initTFInterpreter()
   error_reporter->Report(TfLiteTypeGetName(output->type));
   error_reporter->Report("Arena Used:%d bytes of memory", interpreter->arena_used_bytes());
 }
-
+void sendMessageToQueue(const String &pmessage, QueueHandle_t messageQueue)
+{
+  size_t jsonLength = pmessage.length() + 1;
+  Message message;
+  message.data = (char *)malloc(jsonLength);
+  if (message.data == nullptr)
+  {
+    // Handle memory allocation failure
+    ESP_LOGE(TAG, "Failed to allocate memory for message");
+    return;
+  }
+  memccpy(message.data, pmessage.c_str(), 0, jsonLength);
+  message.length = jsonLength;
+  xQueueSend(messageQueue, &message, 0);
+}
 void aiTask(void *pvParameters)
 {
   AITaskParams_t *params = (AITaskParams_t *)pvParameters;
   QueueHandle_t jpegQueue = params->jpegQueue;
   QueueHandle_t messageQueue = params->messageQueue;
   JpegImage image;
-  ESP_LOGI("AI_TASK", "Starting AI Task");
+  ESP_LOGI(TAG, "Starting AI Task");
   while (true)
   {
 
     if (xQueueReceive(jpegQueue, &image, 0) == pdTRUE)
     {
-      ESP_LOGI("AI_TASK", "Received image of size %d", image.length);
-      ESP_LOGI("AI_TASK", "Image decompress started");
+      ESP_LOGI(TAG, "Received image of size %d", image.length);
+      ESP_LOGI(TAG, "Image decompress started");
       fmt2rgb888(image.data, image.length, PIXFORMAT_JPEG, input->data.uint8);
-      ESP_LOGI("AI_TASK", "Image decompressed");
+      ESP_LOGI(TAG, "Image decompressed");
       free(image.data);
       delay(10); // feed watchdog
-      ESP_LOGI("AI_TASK", "Model invoking started");
+      ESP_LOGI(TAG, "Model invoking started");
       uint start = millis();
       esp_task_wdt_delete(xTaskGetCurrentTaskHandle());
       if (kTfLiteOk != interpreter->Invoke())
       {
-        ESP_LOGE("AI_TASK", "Invoke failed.");
+        ESP_LOGE(TAG, "Invoke failed.");
       }
       else
       {
-        ESP_LOGI("AI_TASK", "Invoke passed. Took : %d milliseconds", millis() - start);
+        ESP_LOGI(TAG, "Invoke passed. Took : %d milliseconds", millis() - start);
       }
       esp_task_wdt_add(xTaskGetCurrentTaskHandle());
 
@@ -118,7 +133,7 @@ void aiTask(void *pvParameters)
         TfLiteTensor *output = interpreter->output(i);
         for (int j = 0; j < output->dims->size; j++)
         {
-          ESP_LOGI("AI_TASK", "Output Shape %d", output->dims->data[j]);
+          ESP_LOGI(TAG, "Output Shape %d", output->dims->data[j]);
         }
       }
       std::vector<std::pair<int8_t, int>> value_index_pairs;
@@ -133,27 +148,14 @@ void aiTask(void *pvParameters)
 
       for (int i = 0; i < 5 && i < value_index_pairs.size(); ++i)
       {
-        ESP_LOGI("AI_TASK", "Top %d: %s (%d)", i, classes[value_index_pairs[i].second].c_str(), value_index_pairs[i].first);
+        ESP_LOGI(TAG, "Top %d: %s (%d)", i, classes[value_index_pairs[i].second].c_str(), value_index_pairs[i].first);
       }
 
-      JsonDocument json;
-      json["responseType"] = "prediction";
-      json["topPredictionIndex"] = value_index_pairs[0].second;
-      json["topPredictionStrength"] = value_index_pairs[0].first;
-      json["topPredictionClassName"] = classes[value_index_pairs[0].second].c_str();
-      String serializedJson;
-
-      serializeJson(json, serializedJson);
-      size_t jsonLength = serializedJson.length() + 1;
-      Message message;
-      message.data = (char *)malloc(jsonLength);
-      memccpy(message.data, serializedJson.c_str(), 0, jsonLength);
-      message.length = jsonLength;
-      xQueueSend(messageQueue, &message, 0);
+      String pmessage = predictionMessage(classes[value_index_pairs[0].second], value_index_pairs[0].first, value_index_pairs[0].second);
+      sendMessageToQueue(pmessage, messageQueue);
     }
     else
     {
-      ESP_LOGI("AI_TASK", "No image received");
       delay(10);
     }
   }
@@ -162,10 +164,10 @@ void aiTask(void *pvParameters)
 /// @param jpegQueue freeRTOS queue if images to process
 void startAITask(QueueHandle_t jpegQueue, QueueHandle_t messageQueue)
 {
-  ESP_LOGI("AI_TASK", "Starting AI Task");
-  ESP_LOGI("AI_TASK", "Creating tensorflow interpreter");
+  ESP_LOGI(TAG, "Starting AI Task");
+  ESP_LOGI(TAG, "Creating tensorflow interpreter");
   initTFInterpreter();
-  ESP_LOGI("AI_TASK", "Created tensorflow interpreter");
+  ESP_LOGI(TAG, "Created tensorflow interpreter");
   AITaskParams_t *params = (AITaskParams_t *)malloc(sizeof(AITaskParams_t));
   params->jpegQueue = jpegQueue;
   params->messageQueue = messageQueue;

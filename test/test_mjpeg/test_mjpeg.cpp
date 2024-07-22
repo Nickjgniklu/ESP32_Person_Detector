@@ -22,14 +22,14 @@ void test_mjpeg_chunks(void)
 {
     // max length of buffer provided that can be filled by handleChunkedResponse
     const size_t maxLen = 5000;
-    QueueHandle_t mjpegQueue = xQueueCreate(4, sizeof(JpegImage));
+    QueueHandle_t mjpegQueue = xQueueCreate(2, sizeof(JpegImage));
     // add some data to the queue
     JpegImage img;
     img.length = 5500;
-    img.data = (uint8_t *)malloc(img.length);
+    img.data = (uint8_t *)ps_malloc(img.length);
     JpegImage img2;
     img2.length = 6500;
-    img2.data = (uint8_t *)malloc(img2.length);
+    img2.data = (uint8_t *)ps_malloc(img2.length);
     // valid jpegs are not needed for this test
     // we will check that data in buffer has been written to 0
     // to enshure that the right amount of fake jpeg has been written
@@ -48,7 +48,7 @@ void test_mjpeg_chunks(void)
     // here we write to the same buffer multiple times via handleChunkedResponse
     // esp async web server provides new buffers for each call
     // we are creating a buffer larger than maxLen to test that the function does not write more than maxLen
-    uint8_t buffer[6000];
+    uint8_t *buffer = (uint8_t *)ps_malloc(8000);
     // fill buffer with some data
     for (int i = 0; i < 6000; i++)
     {

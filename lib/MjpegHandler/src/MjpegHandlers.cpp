@@ -58,6 +58,8 @@ size_t handleChunkedResponse(MjpegStreamState *state, QueueHandle_t mjpegQueue, 
         {
             return RESPONSE_TRY_AGAIN;
         }
+        //ESP_LOGD(TAG, "hello");
+
         memcpy(buffer, buf, header_length);
         state->send_header = false;
         return header_length;

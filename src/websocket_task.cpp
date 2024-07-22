@@ -1,7 +1,7 @@
 #include "websocket_task.h"
 #include "Message.h"
 #include <ArduinoJson.h>
-#include "file_helpers.h"
+#include "messages.h"
 typedef struct
 {
   QueueHandle_t messageQueue;
@@ -10,33 +10,12 @@ typedef struct
 } WebsocketTaskParams_t;
 void sendSdInfo(AsyncWebSocketClient *client)
 {
-  JsonDocument json;
-  json["responseType"] = "sdInfo";
-  json["totalBytes"] = getTotalBytes();
-  json["usedBytes"] = getUsedBytes();
-  json["freeBytes"] = getFreeBytes();
-  String output;
-
-  serializeJson(json, output);
-  client->text(output.c_str());
+  client->text(sdInfoMessage());
 }
 
 void sendSystemInfo(AsyncWebSocketClient *client)
 {
-  JsonDocument json;
-  json["responseType"] = "systemInfo";
-  json["heapSize"] = ESP.getFreeHeap();
-  json["sdkVersion"] = ESP.getSdkVersion();
-  json["chipModel"] = ESP.getChipModel();
-  json["freeHeap"] = ESP.getFreeHeap();
-  json["freePsram"] = ESP.getFreeHeap();
-  json["psRamSize"] = ESP.getPsramSize();
-  json["uptimeMs"] = millis();
-
-  String output;
-
-  serializeJson(json, output);
-  client->text(output.c_str());
+  client->text(systemInfoMessage());
 }
 
 void handleWebSocketMessage(AsyncWebSocketClient *client, void *arg, uint8_t *data, size_t len)

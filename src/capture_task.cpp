@@ -2,8 +2,9 @@
 #include "camera_config.h"
 #include "JpegImage.h"
 #include "OV2640.h" // Include the header file that defines the "OV2640" type
-
+#define TAG "CAMERA_TASK"
 OV2640 camera;
+
 typedef struct
 {
   QueueHandle_t *jpegQueues;
@@ -28,6 +29,7 @@ void cameraTask(void *pvParameters)
   CameraTaskParams_t *params = (CameraTaskParams_t *)pvParameters;
   QueueHandle_t *jpegQueues = params->jpegQueues;
   uint jpegQueueCount = params->jpegQueueCount;
+
   while (true)
   {
     // check if any of the queues have space
@@ -50,6 +52,11 @@ void cameraTask(void *pvParameters)
         uint8_t *frame_buffer = (uint8_t *)malloc(frame_size);
         memcpy(frame_buffer, camera.getfb(), frame_size);
         JpegImage image;
+
+        if (!getLocalTime(&image.timeInfo))
+        {
+          ESP_LOGE(TAG, "Failed to obtain time");
+        }
         image.data = frame_buffer;
         image.length = frame_size;
         if (uxQueueSpacesAvailable(jpegQueues[i]) > 0)

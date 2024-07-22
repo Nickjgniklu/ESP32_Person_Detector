@@ -9,7 +9,6 @@
 #include "freertos/task.h"
 #define TAG "SAVE_TASK"
 #define SD_CARD_PIN 21
-struct tm timeInfo;
 
 typedef struct
 {
@@ -96,32 +95,15 @@ void saveTask(void *pvParameters)
   AITaskParams_t *params = (AITaskParams_t *)pvParameters;
   QueueHandle_t jpegQueue = params->jpegQueue;
   JpegImage image;
-  bool localTimeObtained = false;
   while (true)
   {
-    if (!localTimeObtained)
-    {
-      if (!getLocalTime(&timeInfo))
-      {
-        ESP_LOGE(TAG, "Failed to obtain time");
-      }
-      else
-      {
-        ESP_LOGI(TAG, "Time obtained");
-        localTimeObtained = true;
-      }
-    }
+
     if (!sdCardInitialized)
     {
       sdCardInitialized = setupSdCard();
       if (sdCardInitialized)
       {
         ESP_LOGI(TAG, "SD Card initialized");
-
-        if (!getLocalTime(&timeInfo))
-        {
-          ESP_LOGE(TAG, "Failed to obtain time");
-        }
       }
       else
       {
@@ -134,8 +116,7 @@ void saveTask(void *pvParameters)
       if (xQueueReceive(jpegQueue, &image, 0) == pdTRUE)
       {
         char filename[48];
-        strftime(filename, sizeof(filename), "/%B %d %Y %H %M %S ", &timeInfo);
-        snprintf(filename + strlen(filename), sizeof(filename) - strlen(filename), "%03d.jpg", millis() % 1000);
+        strftime(filename, sizeof(filename), "/%B %d %Y %H %M %S.jpg", &image.timeInfo);
         ESP_LOGI(TAG, "Saving image to %s", filename);
 
         writeFile(SD, filename, image.data, image.length);
