@@ -7,3 +7,5 @@ src/wifikeys.h
 logged_jpegs/*
 logs/*
 monitor/__pycache__/*
+training/venv/*
+training/windows-venv/*
