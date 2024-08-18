@@ -9,3 +9,5 @@ logs/*
 monitor/__pycache__/*
 training/venv/*
 training/windows-venv/*
+training/mydata/*
+training/.env
