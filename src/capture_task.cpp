@@ -98,7 +98,7 @@ void startCaptureTask(QueueHandle_t *jpegQueues, uint jpegQueueCount)
   xTaskCreate(
       cameraTask,    // Task function
       "Camera Task", // Name of the task (for debugging purposes)
-      4098,          // Stack size (bytes)
+      8000,          // Stack size (bytes)
       params,        // Parameter to pass to the task
       1,             // Task priority
       NULL           // Task handle
