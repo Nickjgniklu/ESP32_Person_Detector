@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   label-studio:
+    container_name: label-studio
     image: heartexlabs/label-studio:latest
     ports:
       - "8089:8080"
