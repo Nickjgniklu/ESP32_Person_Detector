@@ -1,10 +1,9 @@
 #include "ai_task.h"
 #include "JpegImage.h"
 #include <Arduino.h>
-#include <MobileNetV2.h>
+#include <Model.h>
 #include <all_ops_resolver.h>
 #include "esp_camera.h"
-#include <MobileNetClasses.h>
 #include "tensorflow/lite/micro/tflite_bridge/micro_error_reporter.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/schema/schema_generated.h"
@@ -39,7 +38,7 @@ void initTFInterpreter()
   static tflite::MicroErrorReporter micro_error_reporter;
   error_reporter = &micro_error_reporter;
   // Create Model
-  model = tflite::GetModel(__MobileNetV2_tflite);
+  model = tflite::GetModel(__model_tflite);
   // Verify Version of Tf Micro matches Model's verson
   if (model->version() != TFLITE_SCHEMA_VERSION)
   {
@@ -139,19 +138,21 @@ void aiTask(void *pvParameters)
       std::vector<std::pair<int8_t, int>> value_index_pairs;
 
       TfLiteTensor *output = interpreter->output(0);
-      for (int i = 0; i < 1000; ++i)
+      int result = output->data.int8[0];
+      float result_float = (result - model_quantization_zero_point) * model_quantization_scale;
+      error_reporter->Report("Float result: %f", result_float);
+      bool person = result_float > 0.7; // default_model_prediction_threshold;
+      if (person)
       {
-        value_index_pairs.push_back({output->data.int8[i], i});
+        ESP_LOGI(TAG, "Person detected");
       }
-      std::sort(value_index_pairs.begin(), value_index_pairs.end(), [](const std::pair<int8_t, int> &a, const std::pair<int8_t, int> &b)
-                { return a.first > b.first; });
-
-      for (int i = 0; i < 5 && i < value_index_pairs.size(); ++i)
+      else
       {
-        ESP_LOGI(TAG, "Top %d: %s (%d)", i, classes[value_index_pairs[i].second].c_str(), value_index_pairs[i].first);
+        ESP_LOGI(TAG, "No person detected");
       }
+      String message = person ? "person" : "no_person";
 
-      String pmessage = predictionMessage(classes[value_index_pairs[0].second], value_index_pairs[0].first, value_index_pairs[0].second);
+      String pmessage = predictionMessage(message, result_float);
       sendMessageToQueue(pmessage, messageQueue);
     }
     else

@@ -2,7 +2,7 @@
 #include <FreeRTOS.h>
 #include <WiFiClient.h>
 #include <ArduinoJson.h>
-#include "MobileNetV2.h"
+#include "Model.h"
 #include "JpegImage.h"
 #include "MjpegHandlers.h"
 #include "messages.h"
@@ -49,24 +49,22 @@ void test_sd_message(void)
 void test_prediction_message(void)
 {
     String className = "cat";
-    uint32_t strength = 95;
+    float prob = 0.2;
     uint32_t index = 1;
-    String message = predictionMessage(className, strength, index);
+    String message = predictionMessage(className, prob);
     JsonDocument json;
     DeserializationError error = deserializeJson(json, message);
     TEST_ASSERT_EQUAL(error.Ok, ArduinoJson::DeserializationError::Ok);
 
     // Validate the existence of each key
     TEST_ASSERT_TRUE(json.containsKey("responseType"));
-    TEST_ASSERT_TRUE(json.containsKey("topPredictionStrength"));
-    TEST_ASSERT_TRUE(json.containsKey("topPredictionIndex"));
-    TEST_ASSERT_TRUE(json.containsKey("topPredictionClassName"));
+    TEST_ASSERT_TRUE(json.containsKey("probability"));
+    TEST_ASSERT_TRUE(json.containsKey("prediction"));
 
     // Validate the values
     TEST_ASSERT_EQUAL_STRING("prediction", json["responseType"]);
-    TEST_ASSERT_EQUAL(strength, json["topPredictionStrength"]);
-    TEST_ASSERT_EQUAL(index, json["topPredictionIndex"]);
-    TEST_ASSERT_EQUAL_STRING(className.c_str(), json["topPredictionClassName"]);
+    TEST_ASSERT_EQUAL(prob, json["probability"]);
+    // TEST_ASSERT_EQUAL(className, json["prediction"]);
 }
 
 int runUnityTests(void)

@@ -33,13 +33,12 @@ String sdInfoMessage()
   serializeJson(json, output);
   return output;
 }
-String predictionMessage(String className, uint32_t strength, u32_t index)
+String predictionMessage(String className, float probability)
 {
   JsonDocument json;
   json["responseType"] = "prediction";
-  json["topPredictionStrength"] = strength;
-  json["topPredictionIndex"] = index;
-  json["topPredictionClassName"] = className;
+  json["probability"] = probability;
+  json["prediction"] = className;
   String output;
 
   serializeJson(json, output);

@@ -6,4 +6,4 @@
 
 String systemInfoMessage();
 String sdInfoMessage();
-String predictionMessage(String className, uint32_t strength, u32_t index);
+String predictionMessage(String className, float probability);

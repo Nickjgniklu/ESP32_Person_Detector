@@ -4,9 +4,10 @@ import './App.css';
 function App() {
   const [message, setMessage] = useState('');
   const [prediction, setPrediction] = useState('');
+  const [probability, setProbability] = useState('');
   const [usedBytes, setUsedBytes] = useState(0);
   const [uptime, setUptime] = useState(0);
-  const host = '192.168.50.23'
+  const host = '192.168.50.21'
   const mjpegUrl = `http://${host}/mjpeg`;
   const wsUrl = `ws://${host}/ws`;
 
@@ -16,7 +17,8 @@ function App() {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.responseType === 'prediction') {
-        setPrediction(data.topPredictionClassName);
+        setPrediction(data.prediction);
+        setProbability(data.probability);
       }
       if (data.responseType === 'sdInfo') {
         setUsedBytes(data.usedBytes);
@@ -45,6 +47,7 @@ function App() {
       <header className="App-header">
         <img src={mjpegUrl} alt="MJPEG Stream" />
         <p>prediction: {prediction}</p>
+        <p>probability: {probability}</p>
         <p>usedBytes: {usedBytes}</p>
         <p>Uptime: {uptime}</p>
       </header>
