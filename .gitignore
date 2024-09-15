@@ -10,3 +10,4 @@ monitor/__pycache__/*
 venv/*
 windows-venv/*
 training/.env
+training/.ipynb_checkpoints/*

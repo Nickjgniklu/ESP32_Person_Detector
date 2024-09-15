@@ -7,12 +7,12 @@ WORKDIR /app
 # Copy the requirements file into the container
 COPY requirements.txt .
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y libgl1-mesa-dev
-
 # Install the required Python packages
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
+
+# Install system dependencies for opencv
+RUN apt-get update && apt-get install -y libgl1-mesa-dev
 
 # Copy the current directory contents into the container at /app
 COPY . /app

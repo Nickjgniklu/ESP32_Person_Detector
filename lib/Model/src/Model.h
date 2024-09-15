@@ -6,7 +6,7 @@
 #define MODEL
 
 extern const unsigned char __model_tflite[];
-extern unsigned int __model_tflite_len;
+extern const unsigned int __model_tflite_len;
 extern float model_quantization_scale;
 extern int model_quantization_zero_point;
 extern float default_model_prediction_threshold;
