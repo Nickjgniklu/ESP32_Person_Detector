@@ -8,6 +8,7 @@ logged_jpegs/*
 logs/*
 monitor/__pycache__/*
 venv/*
+training/windows-venv/*
 windows-venv/*
 training/.env
 training/.ipynb_checkpoints/*
