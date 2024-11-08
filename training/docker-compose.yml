@@ -1,5 +1,6 @@
 services:
   tensorflow-jupyter:
+    profiles: ["cpu"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,8 +10,38 @@ services:
       - .:/app
       - ~/tensorflow_datasets:/root/tensorflow_datasets
       - ../:/root/firmware_root
-
     command: [ "jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root" ]
+
+  tensorflow-jupyter-amd:
+    profiles: ["amd"]
+    build:
+      context: .
+      dockerfile: DockerfileRocm
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/app
+      - ~/tensorflow_datasets:/root/tensorflow_datasets
+      - ../:/root/firmware_root
+    command: [ "jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root" ]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    runtime: nvidia
+    devices:
+      - "/dev/kfd"
+      - "/dev/dri"
+    ipc: host
+    shm_size: "16G"
+    group_add:
+      - video
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp=unconfined
+
   label-studio:
     container_name: label-studio
     image: heartexlabs/label-studio:latest
