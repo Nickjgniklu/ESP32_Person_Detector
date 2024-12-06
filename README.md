@@ -64,3 +64,11 @@ Run the following command to execute unit tests:
 
 ```sh
 pio test
+```
+### build client site
+1. `cd client`
+2. `npm install`
+3. `npm run dev` runs locally
+4. `npx vite build` creates a single page html app
+5. `gzip dist\index.html`
+6.  TODO slap the bugger into the firmware
