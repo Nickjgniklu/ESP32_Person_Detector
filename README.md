@@ -52,8 +52,12 @@ See `training/esp32_transfer_learning.ipynb` for more details.
 
 ## Compile Firmware
 
-Open the root folder of this project in Platform.io.
+1. Open the root folder of this project in Platform.io.
+2. `cp src\wifikeys.template src\wifikeys.h` and input your wifi information
+3. `pio run`
 
+## Upload firmware
+`pio run --target upload --upload-port <COM_PORT>`
 ## Unit Tests
 
 Run the following command to execute unit tests:

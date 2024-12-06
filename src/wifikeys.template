@@ -1,0 +1,2 @@
+#define ssid "networkname"
+#define password "networkpassword"
