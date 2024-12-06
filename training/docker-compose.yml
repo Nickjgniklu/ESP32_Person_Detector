@@ -1,5 +1,7 @@
 services:
   tensorflow-jupyter:
+    profiles:
+      - training
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,10 +14,12 @@ services:
 
     command: [ "jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root" ]
   label-studio:
+    profiles:
+      - labeling
     container_name: label-studio
-    image: heartexlabs/label-studio:latest
+    image: heartexlabs/label-studio:1.13.1
     ports:
-      - "8089:8080"
+      - "8080:8080"
     volumes:
       - ./mydata:/label-studio/data
     env_file:

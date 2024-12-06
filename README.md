@@ -29,6 +29,26 @@ ESP32S3 XIAO Sense
 6. Quantize the model for ESP32.
 
 See `training/esp32_transfer_learning.ipynb` for more details.
+## Training
+ 1. `cd .\training\`
+ 2. `cp .\.env.template .env`
+ 3. `update .env passwords `
+ 4. `docker compose --profile training up`
+ if you add items to requirement.txt you will need to ``docker compose --profile training up --build``
+ 5. a server url will be output to use for jupyter
+    + visit your url example: http://127.0.0.1:8888/tree?token=<token> 
+    + you may also add it connect from vscode  
+ 6. press run all to retrain the model from scratch
+### labeling
+ 1. `cd .\training\`
+ 2. ensure your .env file is created
+ 3. run `docker compose --profile labeling up`
+ 4. visit http://localhost:8080 and login with the env params
+ 5. add data to `esp32 person detector custom data` and label it
+ 6. export the project as a csv it should export a file like `training\mydata\export\project-4-at-2024-09-13-15-20-c743e35a-info.json`
+ to `training\mydata\export`
+ 7. update csv_file_path = 'front_door_label_export.csv'
+ 8. follow training instructions to retrain the model with you custom data
 
 ## Compile Firmware
 
