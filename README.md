@@ -57,6 +57,8 @@ See `training/esp32_transfer_learning.ipynb` for more details.
 3. `pio run`
 
 ## Upload firmware
+`pio run --target buildfs --environment seeed_xiao_esp32s3`
+`pio run --target uploadfs --environment seeed_xiao_esp32s3`
 `pio run --target upload --upload-port <COM_PORT>`
 ## Unit Tests
 
@@ -71,4 +73,4 @@ pio test
 3. `npm run dev` runs locally
 4. `npx vite build` creates a single page html app
 5. `gzip dist\index.html`
-6.  TODO slap the bugger into the firmware
+6.  `cp .\dist\index.html.gz ..\data\`

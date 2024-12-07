@@ -7,9 +7,16 @@ function App() {
   const [probability, setProbability] = useState('');
   const [usedBytes, setUsedBytes] = useState(0);
   const [uptime, setUptime] = useState(0);
-  const host = '192.168.50.21'
-  const mjpegUrl = `http://${host}/mjpeg`;
-  const wsUrl = `ws://${host}/ws`;
+  const esp32Ip = '192.168.50.21'
+  const host = import.meta.env.MODE === 'development' ? esp32Ip : '';
+
+  let mjpegUrl = `${host}/mjpeg`;
+  let wsUrl = `${host}/ws`;
+  if (import.meta.env.MODE === 'development') {
+    mjpegUrl = `http://${mjpegUrl}`
+    wsUrl = `ws://${wsUrl}`;
+
+  }
 
   useEffect(() => {
     const ws = new WebSocket(wsUrl);

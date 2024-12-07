@@ -12,6 +12,8 @@
 #include "capture_task.h"
 #include "ai_task.h"
 #include "save_task.h"
+#include "SPIFFS.h"
+
 QueueHandle_t mjpegQueue;
 QueueHandle_t saveJpegQueue;
 QueueHandle_t AIjpegQueue;
@@ -52,6 +54,10 @@ void setup()
 
   startAITask(AIjpegQueue, messageQueue);
   startWebsocket(messageQueue, &ws, &server);
+  if (!SPIFFS.begin(true))
+  {
+    ESP_LOGE("SETUP", "SPIFFs failure");
+  }
 }
 
 void loop()
@@ -64,6 +70,13 @@ void loop()
 void notFound(AsyncWebServerRequest *request)
 {
   request->send(404, "text/plain", "Not found");
+}
+
+void sendUI(AsyncWebServerRequest *request)
+{
+  AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/index.html.gz", "text/html");
+  response->addHeader("Content-Encoding", "gzip");
+  request->send(response);
 }
 
 void setupWifi()
@@ -86,6 +99,7 @@ void setupServer()
 {
   server.on("/mjpeg", HTTP_GET, [](AsyncWebServerRequest *request)
             { handleMjpeg(request, mjpegQueue); });
+  server.on("/", sendUI);
 
   server.onNotFound(notFound);
   server.begin();
