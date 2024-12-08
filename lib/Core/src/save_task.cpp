@@ -19,22 +19,61 @@ typedef struct
 void writeFile(fs::FS &fs, const char *path, uint8_t *data, size_t len)
 {
   ESP_LOGI(TAG, "Writing file: %s", path);
-  u_int32_t start = millis();
+  unsigned long start = millis();
+  unsigned long openStart = millis();
   File file = fs.open(path, FILE_WRITE);
+  unsigned long openEnd = millis();
   if (!file)
   {
-    ESP_LOGI(TAG, "Failed to open file for writing: %s", path);
+    ESP_LOGE(TAG, "Failed to open file for writing: %s", path);
     return;
   }
-  if (file.write(data, len) == len)
+  ESP_LOGI(TAG, "Time to open file: %lu ms", openEnd - openStart);
+
+  size_t chunkSize = 512;
+  size_t written = 0;
+  while (written < len)
   {
-    ESP_LOGI(TAG, "File of size %d written in %d ms", len, millis() - start);
+    unsigned long chunkStart = millis();
+    size_t toWrite = (len - written) < chunkSize ? (len - written) : chunkSize;
+    if (file.write(data + written, toWrite) != toWrite)
+    {
+      ESP_LOGE(TAG, "Write failed at chunk starting at %d", written);
+      file.close();
+      return;
+    }
+    unsigned long chunkEnd = millis();
+    ESP_LOGI(TAG, "Time to write chunk: %lu ms", chunkEnd - chunkStart);
+    written += toWrite;
+  }
+
+  unsigned long end = millis();
+  ESP_LOGI(TAG, "File of size %d written in %lu ms", len, end - start);
+  file.close();
+}
+
+void concatFileDump(fs::File &file, uint8_t *data, size_t len)
+{
+  if (!file)
+  {
+    ESP_LOGE(TAG, "file not open");
+    return;
+  }
+  file.seek(file.size());
+
+  unsigned long start = millis();
+  size_t written = file.write(data, len);
+  file.flush();
+  unsigned long end = millis();
+
+  if (written != len)
+  {
+    ESP_LOGE(TAG, "Failed to append data to file");
   }
   else
   {
-    ESP_LOGI(TAG, "Write failed");
+    ESP_LOGI(TAG, "Appended %d bytes to file in %lu ms", written, end - start);
   }
-  file.close();
 }
 
 u64_t countFilesInRoot(fs::FS &fs)
@@ -95,12 +134,15 @@ void saveTask(void *pvParameters)
   AITaskParams_t *params = (AITaskParams_t *)pvParameters;
   QueueHandle_t jpegQueue = params->jpegQueue;
   JpegImage image;
+  File dump_file;
+
   while (true)
   {
 
     if (!sdCardInitialized)
     {
       sdCardInitialized = setupSdCard();
+      dump_file = SD.open("/dump_jpeg.mjpeg", FILE_WRITE);
       if (sdCardInitialized)
       {
         ESP_LOGI(TAG, "SD Card initialized");
@@ -115,11 +157,8 @@ void saveTask(void *pvParameters)
     {
       if (xQueueReceive(jpegQueue, &image, 0) == pdTRUE)
       {
-        char filename[48];
-        strftime(filename, sizeof(filename), "/%B %d %Y %H %M %S.jpg", &image.timeInfo);
-        ESP_LOGI(TAG, "Saving image to %s", filename);
-
-        writeFile(SD, filename, image.data, image.length);
+        char filename[64];
+        concatFileDump(dump_file, image.data, image.length);
         free(image.data);
         delay(10);
       }

@@ -74,3 +74,6 @@ pio test
 4. `npx vite build` creates a single page html app
 5. `gzip dist\index.html`
 6.  `cp .\dist\index.html.gz ..\data\`
+
+## Decode saved mjpeg file
+`ffmpeg -i dump_jpeg.mjpeg -q:v 2 output_%06d.jpg`

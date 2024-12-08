@@ -53,10 +53,6 @@ void cameraTask(void *pvParameters)
         memcpy(frame_buffer, camera.getfb(), frame_size);
         JpegImage image;
 
-        if (!getLocalTime(&image.timeInfo))
-        {
-          ESP_LOGE(TAG, "Failed to obtain time");
-        }
         image.data = frame_buffer;
         image.length = frame_size;
         if (uxQueueSpacesAvailable(jpegQueues[i]) > 0)

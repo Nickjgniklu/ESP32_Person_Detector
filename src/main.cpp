@@ -41,9 +41,9 @@ void setup()
   Serial.begin(115200);
   delay(10000);
   ESP_LOGI("SETUP", "Starting setup");
-  mjpegQueue = jpegQueues[0] = xQueueCreate(1, sizeof(JpegImage));
+  mjpegQueue = jpegQueues[0] = xQueueCreate(2, sizeof(JpegImage));
   AIjpegQueue = jpegQueues[1] = xQueueCreate(1, sizeof(JpegImage));
-  saveJpegQueue = jpegQueues[2] = xQueueCreate(1, sizeof(JpegImage));
+  saveJpegQueue = jpegQueues[2] = xQueueCreate(2, sizeof(JpegImage));
 
   messageQueue = xQueueCreate(1, sizeof(Message));
   startCaptureTask(jpegQueues, 3);
