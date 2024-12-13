@@ -41,6 +41,10 @@ void setup()
   Serial.begin(115200);
   delay(10000);
   ESP_LOGI("SETUP", "Starting setup");
+  if (!SPIFFS.begin(true))
+  {
+    ESP_LOGE("SETUP", "SPIFFs failure");
+  }
   mjpegQueue = jpegQueues[0] = xQueueCreate(2, sizeof(JpegImage));
   AIjpegQueue = jpegQueues[1] = xQueueCreate(1, sizeof(JpegImage));
   saveJpegQueue = jpegQueues[2] = xQueueCreate(2, sizeof(JpegImage));
@@ -54,10 +58,7 @@ void setup()
 
   startAITask(AIjpegQueue, messageQueue);
   startWebsocket(messageQueue, &ws, &server);
-  if (!SPIFFS.begin(true))
-  {
-    ESP_LOGE("SETUP", "SPIFFs failure");
-  }
+  
 }
 
 void loop()
@@ -65,7 +66,6 @@ void loop()
   // put your main code here, to run repeatedly:
   delay(50);
 }
-
 // put function definitions here:
 void notFound(AsyncWebServerRequest *request)
 {

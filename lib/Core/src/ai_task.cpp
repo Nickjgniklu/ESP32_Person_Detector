@@ -29,6 +29,7 @@ namespace
   // An area of memory to use for input, output, and intermediate arrays.
   const int kTensorArenaSize = 1024 * 1024;
   uint8_t *tensor_arena;
+  Model modelLoader = Model();
 }
 
 void initTFInterpreter()
@@ -38,7 +39,8 @@ void initTFInterpreter()
   static tflite::MicroErrorReporter micro_error_reporter;
   error_reporter = &micro_error_reporter;
   // Create Model
-  model = tflite::GetModel(__model_tflite);
+  modelLoader.load_model("/model.tflite");
+  model = tflite::GetModel(modelLoader.get_model());
   // Verify Version of Tf Micro matches Model's verson
   if (model->version() != TFLITE_SCHEMA_VERSION)
   {
@@ -139,7 +141,7 @@ void aiTask(void *pvParameters)
 
       TfLiteTensor *output = interpreter->output(0);
       int result = output->data.int8[0];
-      float result_float = (result - model_quantization_zero_point) * model_quantization_scale;
+      float result_float = (result - modelLoader.get_quantization_zero_point()) * modelLoader.get_quantization_scale();
       error_reporter->Report("Float result: %f", result_float);
       bool person = result_float > 0.7; // default_model_prediction_threshold;
       if (person)
