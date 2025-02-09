@@ -1,5 +1,5 @@
 # Use the latest TensorFlow image with Jupyter support
-FROM tensorflow/tensorflow:2.16.2-jupyter
+FROM tensorflow/tensorflow:2.17.0-jupyter
 
 # Set the working directory
 WORKDIR /app

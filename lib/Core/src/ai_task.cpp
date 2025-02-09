@@ -17,7 +17,7 @@ typedef struct
   QueueHandle_t messageQueue;
 } AITaskParams_t;
 
-uint raw_image_size = 240 * 240 * 3;
+uint raw_image_size = 800 * 600 * 3;
 
 /// @brief holds rgb image data
 namespace
@@ -27,12 +27,12 @@ namespace
   tflite::MicroInterpreter *interpreter = nullptr;
   TfLiteTensor *input = nullptr;
   // An area of memory to use for input, output, and intermediate arrays.
-  const int kTensorArenaSize = 1024 * 1024;
+  const int kTensorArenaSize = 6024 * 1024;
   uint8_t *tensor_arena;
   Model modelLoader = Model();
 }
 
-void initTFInterpreter()
+TfLiteStatus initTFInterpreter()
 {
   tensor_arena = (uint8_t *)ps_malloc(kTensorArenaSize);
   // TODO assert with unity that this init worked well
@@ -48,7 +48,7 @@ void initTFInterpreter()
         "Model provided is schema version %d not equal "
         "to supported version %d.",
         model->version(), TFLITE_SCHEMA_VERSION);
-    return;
+    return kTfLiteError;
   }
   CREATE_ALL_OPS_RESOLVER(op_resolver)
   // Build an interpreter to run the model with.
@@ -61,7 +61,7 @@ void initTFInterpreter()
   if (allocate_status != kTfLiteOk)
   {
     error_reporter->Report("AllocateTensors() failed");
-    return;
+    return kTfLiteError;
   }
 
   // Get information about the memory area to use for the model's input.
@@ -82,6 +82,7 @@ void initTFInterpreter()
   }
   error_reporter->Report(TfLiteTypeGetName(output->type));
   error_reporter->Report("Arena Used:%d bytes of memory", interpreter->arena_used_bytes());
+  return kTfLiteOk;
 }
 void sendMessageToQueue(const String &pmessage, QueueHandle_t messageQueue)
 {
@@ -143,7 +144,7 @@ void aiTask(void *pvParameters)
       int result = output->data.int8[0];
       float result_float = (result - modelLoader.get_quantization_zero_point()) * modelLoader.get_quantization_scale();
       error_reporter->Report("Float result: %f", result_float);
-      bool person = result_float > 0.7; // default_model_prediction_threshold;
+      bool person = result_float > 0.15; // default_model_prediction_threshold;
       if (person)
       {
         ESP_LOGI(TAG, "Person detected");
@@ -169,7 +170,14 @@ void startAITask(QueueHandle_t jpegQueue, QueueHandle_t messageQueue)
 {
   ESP_LOGI(TAG, "Starting AI Task");
   ESP_LOGI(TAG, "Creating tensorflow interpreter");
-  initTFInterpreter();
+  TfLiteStatus initStatus = initTFInterpreter();
+
+  if (initStatus != kTfLiteOk)
+  {
+    ESP_LOGE(TAG, "Failed to initialize tensorflow interpreter, ai task will not start");
+  }else{
+    
+
   ESP_LOGI(TAG, "Created tensorflow interpreter");
   AITaskParams_t *params = (AITaskParams_t *)malloc(sizeof(AITaskParams_t));
   params->jpegQueue = jpegQueue;
@@ -183,4 +191,6 @@ void startAITask(QueueHandle_t jpegQueue, QueueHandle_t messageQueue)
       NULL,      // Task handle
       1          // Run the on other core from wifi stuuff
   );
+  ESP_LOGI(TAG, "Initialized tensorflow interpreter");
+  }
 }
