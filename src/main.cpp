@@ -31,14 +31,18 @@ void setupWifi();
 void setupServer();
 void configureLogs()
 {
+  esp_log_level_set("*", ESP_LOG_INFO);
   esp_log_level_set("MJPEG STREAM", ESP_LOG_WARN);
+  esp_log_level_set("MJPEG STREAM", ESP_LOG_WARN);
+  esp_log_level_set("CAMERA_TASK", ESP_LOG_WARN);
 }
 void setup()
 {
   // delay for 10 seconds to allow for serial monitor to connect
   // delay(15000);
-  configureLogs();
   Serial.begin(115200);
+  configureLogs();
+
   delay(10000);
   ESP_LOGI("SETUP", "Starting setup");
   if (!SPIFFS.begin(true))

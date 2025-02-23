@@ -52,14 +52,13 @@ void writeFile(fs::FS &fs, const char *path, uint8_t *data, size_t len)
   file.close();
 }
 
-void concatFileDump(fs::File &file, uint8_t *data, size_t len)
+bool concatFileDump(fs::File &file, uint8_t *data, size_t len)
 {
   if (!file)
   {
     ESP_LOGE(TAG, "file not open");
-    return;
+    return false;
   }
-  file.seek(file.size());
 
   unsigned long start = millis();
   size_t written = file.write(data, len);
@@ -68,15 +67,32 @@ void concatFileDump(fs::File &file, uint8_t *data, size_t len)
 
   if (written != len)
   {
-    ESP_LOGE(TAG, "Failed to append data to file");
+    ESP_LOGE(TAG, "Failed to append data to file, wrote %d bytes", written);
+    ESP_LOGE(TAG, "File write error: %d", file.getWriteError());
+    file.clearWriteError();
+    auto name = file.name();
+    auto path = "/";
+    file.close();
+    ESP_LOGI(TAG, "File error reopening:%s %s", path, name);
+    file = SD.open(String("/") + name, FILE_APPEND);
+    if(!file){
+    return false;
+  }
+  return true;
   }
   else
   {
     ESP_LOGI(TAG, "Appended %d bytes to file in %lu ms", written, end - start);
   }
+  ESP_LOGI(TAG, "File size: %d", file.size());
+  // limit file size to 100MB
+  if(file.size() > 100000000){
+    return false;
+  }
+  return true;
 }
 
-u64_t countFilesInRoot(fs::FS &fs)
+u64_t nextFileNumber(fs::FS &fs)
 {
   File root = fs.open("/");
   if (!root)
@@ -91,17 +107,25 @@ u64_t countFilesInRoot(fs::FS &fs)
   }
 
   File file = root.openNextFile();
-  u64_t count = 0;
+  u64_t max = 0;
   while (file)
   {
     if (!file.isDirectory())
     {
-      count++;
+      String name = file.name();
+      int num = 0;
+      if (sscanf(name.c_str(), "dump_jpeg%d.mjpeg", &num) == 1)
+      {
+        if (num > max)
+        {
+          max = num+1;
+        }
+      }
     }
     file = root.openNextFile();
   }
-  ESP_LOGI(TAG, "File count: %d", count);
-  return count;
+  ESP_LOGI(TAG, "File max file: %d", max);
+  return max;
 }
 
 bool setupSdCard()
@@ -135,6 +159,8 @@ void saveTask(void *pvParameters)
   QueueHandle_t jpegQueue = params->jpegQueue;
   JpegImage image;
   File dump_file;
+  auto curentFilenumber = 0;
+  auto base_file_name = "/dump_jpeg";
 
   while (true)
   {
@@ -142,7 +168,12 @@ void saveTask(void *pvParameters)
     if (!sdCardInitialized)
     {
       sdCardInitialized = setupSdCard();
-      dump_file = SD.open("/dump_jpeg.mjpeg", FILE_WRITE);
+      curentFilenumber = nextFileNumber(SD);
+      
+      auto file_name = base_file_name + String(curentFilenumber++) + ".mjpeg";
+      ESP_LOGI(TAG, "Opening new file: %s", file_name.c_str());
+
+      dump_file = SD.open(file_name, FILE_WRITE);
       if (sdCardInitialized)
       {
         ESP_LOGI(TAG, "SD Card initialized");
@@ -158,7 +189,15 @@ void saveTask(void *pvParameters)
       if (xQueueReceive(jpegQueue, &image, 0) == pdTRUE)
       {
         char filename[64];
-        concatFileDump(dump_file, image.data, image.length);
+        if(concatFileDump(dump_file, image.data, image.length)){
+          ESP_LOGI(TAG, "File appended");
+        }else{
+          dump_file.close();
+          ESP_LOGI(TAG, "File closed");
+          auto file_name = base_file_name + String(curentFilenumber++) + ".mjpeg";
+          ESP_LOGI(TAG, "Opening new file: %s", file_name.c_str());
+          dump_file = SD.open(file_name, FILE_WRITE);
+        }
         free(image.data);
         delay(10);
       }
