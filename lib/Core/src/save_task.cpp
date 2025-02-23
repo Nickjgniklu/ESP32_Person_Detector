@@ -7,7 +7,7 @@
 #include "time.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#define TAG "SAVE_TASK"
+#define LOCAL_TAG "SAVE_TASK"
 #define SD_CARD_PIN 21
 
 typedef struct
@@ -18,17 +18,17 @@ typedef struct
 // SD card write file
 void writeFile(fs::FS &fs, const char *path, uint8_t *data, size_t len)
 {
-  ESP_LOGI(TAG, "Writing file: %s", path);
+  ESP_LOGI(LOCAL_TAG, "Writing file: %s", path);
   unsigned long start = millis();
   unsigned long openStart = millis();
   File file = fs.open(path, FILE_WRITE);
   unsigned long openEnd = millis();
   if (!file)
   {
-    ESP_LOGE(TAG, "Failed to open file for writing: %s", path);
+    ESP_LOGE(LOCAL_TAG, "Failed to open file for writing: %s", path);
     return;
   }
-  ESP_LOGI(TAG, "Time to open file: %lu ms", openEnd - openStart);
+  ESP_LOGI(LOCAL_TAG, "Time to open file: %lu ms", openEnd - openStart);
 
   size_t chunkSize = 512;
   size_t written = 0;
@@ -38,17 +38,17 @@ void writeFile(fs::FS &fs, const char *path, uint8_t *data, size_t len)
     size_t toWrite = (len - written) < chunkSize ? (len - written) : chunkSize;
     if (file.write(data + written, toWrite) != toWrite)
     {
-      ESP_LOGE(TAG, "Write failed at chunk starting at %d", written);
+      ESP_LOGE(LOCAL_TAG, "Write failed at chunk starting at %d", written);
       file.close();
       return;
     }
     unsigned long chunkEnd = millis();
-    ESP_LOGI(TAG, "Time to write chunk: %lu ms", chunkEnd - chunkStart);
+    ESP_LOGI(LOCAL_TAG, "Time to write chunk: %lu ms", chunkEnd - chunkStart);
     written += toWrite;
   }
 
   unsigned long end = millis();
-  ESP_LOGI(TAG, "File of size %d written in %lu ms", len, end - start);
+  ESP_LOGI(LOCAL_TAG, "File of size %d written in %lu ms", len, end - start);
   file.close();
 }
 
@@ -56,7 +56,7 @@ bool concatFileDump(fs::File &file, uint8_t *data, size_t len)
 {
   if (!file)
   {
-    ESP_LOGE(TAG, "file not open");
+    ESP_LOGE(LOCAL_TAG, "file not open");
     return false;
   }
 
@@ -67,13 +67,13 @@ bool concatFileDump(fs::File &file, uint8_t *data, size_t len)
 
   if (written != len)
   {
-    ESP_LOGE(TAG, "Failed to append data to file, wrote %d bytes", written);
-    ESP_LOGE(TAG, "File write error: %d", file.getWriteError());
+    ESP_LOGE(LOCAL_TAG, "Failed to append data to file, wrote %d bytes", written);
+    ESP_LOGE(LOCAL_TAG, "File write error: %d", file.getWriteError());
     file.clearWriteError();
     auto name = file.name();
     auto path = "/";
     file.close();
-    ESP_LOGI(TAG, "File error reopening:%s %s", path, name);
+    ESP_LOGI(LOCAL_TAG, "File error reopening:%s %s", path, name);
     file = SD.open(String("/") + name, FILE_APPEND);
     if(!file){
     return false;
@@ -82,9 +82,9 @@ bool concatFileDump(fs::File &file, uint8_t *data, size_t len)
   }
   else
   {
-    ESP_LOGI(TAG, "Appended %d bytes to file in %lu ms", written, end - start);
+    ESP_LOGI(LOCAL_TAG, "Appended %d bytes to file in %lu ms", written, end - start);
   }
-  ESP_LOGI(TAG, "File size: %d", file.size());
+  ESP_LOGI(LOCAL_TAG, "File size: %d", file.size());
   // limit file size to 100MB
   if(file.size() > 100000000){
     return false;
@@ -97,12 +97,12 @@ u64_t nextFileNumber(fs::FS &fs)
   File root = fs.open("/");
   if (!root)
   {
-    ESP_LOGI(TAG, "Failed to open directory");
+    ESP_LOGI(LOCAL_TAG, "Failed to open directory");
     return 0;
   }
   if (!root.isDirectory())
   {
-    ESP_LOGI(TAG, "Not a directory");
+    ESP_LOGI(LOCAL_TAG, "Not a directory");
     return 0;
   }
 
@@ -124,7 +124,7 @@ u64_t nextFileNumber(fs::FS &fs)
     }
     file = root.openNextFile();
   }
-  ESP_LOGI(TAG, "File max file: %d", max);
+  ESP_LOGI(LOCAL_TAG, "File max file: %d", max);
   return max;
 }
 
@@ -133,7 +133,7 @@ bool setupSdCard()
   // Initialize SD card
   if (!SD.begin(SD_CARD_PIN, SPI, 40'000'000u))
   {
-    ESP_LOGI(TAG, "Card Mount Failed");
+    ESP_LOGI(LOCAL_TAG, "Card Mount Failed");
     return false;
   }
   uint8_t cardType = SD.cardType();
@@ -141,11 +141,11 @@ bool setupSdCard()
   // Determine if the type of SD card is available
   if (cardType == CARD_NONE)
   {
-    ESP_LOGI(TAG, "No SD card attached");
+    ESP_LOGI(LOCAL_TAG, "No SD card attached");
     return false;
   }
 
-  ESP_LOGI(TAG, "SD Card Type: %s", cardType == CARD_MMC ? "MMC" : cardType == CARD_SD ? "SDSC"
+  ESP_LOGI(LOCAL_TAG, "SD Card Type: %s", cardType == CARD_MMC ? "MMC" : cardType == CARD_SD ? "SDSC"
                                                                : cardType == CARD_SDHC ? "SDHC"
                                                                                        : "UNKNOWN");
 
@@ -171,16 +171,16 @@ void saveTask(void *pvParameters)
       curentFilenumber = nextFileNumber(SD);
       
       auto file_name = base_file_name + String(curentFilenumber++) + ".mjpeg";
-      ESP_LOGI(TAG, "Opening new file: %s", file_name.c_str());
+      ESP_LOGI(LOCAL_TAG, "Opening new file: %s", file_name.c_str());
 
       dump_file = SD.open(file_name, FILE_WRITE);
       if (sdCardInitialized)
       {
-        ESP_LOGI(TAG, "SD Card initialized");
+        ESP_LOGI(LOCAL_TAG, "SD Card initialized");
       }
       else
       {
-        ESP_LOGE(TAG, "SD Card initialization failed");
+        ESP_LOGE(LOCAL_TAG, "SD Card initialization failed");
         delay(1000);
       }
     }
@@ -190,12 +190,12 @@ void saveTask(void *pvParameters)
       {
         char filename[64];
         if(concatFileDump(dump_file, image.data, image.length)){
-          ESP_LOGI(TAG, "File appended");
+          ESP_LOGI(LOCAL_TAG, "File appended");
         }else{
           dump_file.close();
-          ESP_LOGI(TAG, "File closed");
+          ESP_LOGI(LOCAL_TAG, "File closed");
           auto file_name = base_file_name + String(curentFilenumber++) + ".mjpeg";
-          ESP_LOGI(TAG, "Opening new file: %s", file_name.c_str());
+          ESP_LOGI(LOCAL_TAG, "Opening new file: %s", file_name.c_str());
           dump_file = SD.open(file_name, FILE_WRITE);
         }
         free(image.data);

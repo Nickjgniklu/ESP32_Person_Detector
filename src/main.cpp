@@ -31,10 +31,14 @@ void setupWifi();
 void setupServer();
 void configureLogs()
 {
-  esp_log_level_set("*", ESP_LOG_INFO);
-  esp_log_level_set("MJPEG STREAM", ESP_LOG_WARN);
-  esp_log_level_set("MJPEG STREAM", ESP_LOG_WARN);
-  esp_log_level_set("CAMERA_TASK", ESP_LOG_WARN);
+  esp_log_level_set("*", ESP_LOG_ERROR);
+  esp_log_level_set("MJPEG_STREAM", ESP_LOG_INFO);
+  // esp_log_level_set("SAVE_TASK", ESP_LOG_WARN);
+  // esp_log_level_set("CAMERA_TASK", ESP_LOG_WARN);
+  // esp_log_level_set("MODAL", ESP_LOG_WARN);
+  // esp_log_level_set("MESSAGES", ESP_LOG_WARN);
+  // esp_log_level_set("AI_TASK", ESP_LOG_WARN);
+  // esp_log_level_set("FILE_HELPERS", ESP_LOG_WARN);
 }
 void setup()
 {

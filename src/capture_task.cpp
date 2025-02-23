@@ -2,7 +2,7 @@
 #include "camera_config.h"
 #include "JpegImage.h"
 #include "OV2640.h" // Include the header file that defines the "OV2640" type
-#define TAG "CAMERA_TASK"
+#define LOCAL_TAG "CAMERA_TASK"
 OV2640 camera;
 
 typedef struct

@@ -2,7 +2,7 @@
 
 const char BOUNDARY[] = "\r\n--123456789000000000000987654321\r\n";
 const int bdrLen = strlen(BOUNDARY);
-#define TAG "MJPEG STREAM"
+#define LOCAL_TAG "MJPEG_STREAM"
 size_t handleChunkedResponse(MjpegStreamState *state, QueueHandle_t mjpegQueue, uint8_t *buffer, size_t maxLen, size_t index)
 {
     // Write up to "maxLen" bytes into "buffer" and return the amount written.
@@ -21,7 +21,7 @@ size_t handleChunkedResponse(MjpegStreamState *state, QueueHandle_t mjpegQueue, 
             // hopefully this does not happen... but just incase try again later
             return RESPONSE_TRY_AGAIN;
         }
-        ESP_LOGD(TAG, "Sending boundary");
+        ESP_LOGD(LOCAL_TAG, "Sending boundary");
         memcpy(buffer, BOUNDARY, bdrLen);
         state->send_boundary = false;
         return bdrLen;
@@ -30,10 +30,10 @@ size_t handleChunkedResponse(MjpegStreamState *state, QueueHandle_t mjpegQueue, 
 
     if (!state->frame_available && xQueueReceive(mjpegQueue, &receivedItem, 0) == pdPASS)
     {
-        ESP_LOGD(TAG, "time since last frame %d", millis() - state->timeOfLastFrame);
+        ESP_LOGD(LOCAL_TAG, "time since last frame %d", millis() - state->timeOfLastFrame);
         state->timeOfLastFrame = millis();
         // Process the received item
-        ESP_LOGD(TAG, "Found frame %d size", receivedItem.length);
+        ESP_LOGD(LOCAL_TAG, "Found frame %d size", receivedItem.length);
 
         state->currentSteamingImageBuffer = receivedItem.data;
         state->currentSteamingImageSize = receivedItem.length;
@@ -44,7 +44,7 @@ size_t handleChunkedResponse(MjpegStreamState *state, QueueHandle_t mjpegQueue, 
     bool release_frame = false;
     if (state->send_header)
     {
-        ESP_LOGD(TAG, "Sending header for frame");
+        ESP_LOGD(LOCAL_TAG, "Sending header for frame");
 
         char buf[32 + 43];
 
@@ -58,7 +58,7 @@ size_t handleChunkedResponse(MjpegStreamState *state, QueueHandle_t mjpegQueue, 
         {
             return RESPONSE_TRY_AGAIN;
         }
-        //ESP_LOGD(TAG, "hello");
+        //ESP_LOGD(LOCAL_TAG, "hello");
 
         memcpy(buffer, buf, header_length);
         state->send_header = false;
@@ -80,13 +80,13 @@ size_t handleChunkedResponse(MjpegStreamState *state, QueueHandle_t mjpegQueue, 
             copy_size = chunk_size;
         }
 
-        ESP_LOGD(TAG, "Sending frame %d bytes at index %d , max was %d", copy_size, state->frame_index, maxLen);
+        ESP_LOGD(LOCAL_TAG, "Sending frame %d bytes at index %d , max was %d", copy_size, state->frame_index, maxLen);
         memcpy(buffer, state->currentSteamingImageBuffer + state->frame_index, copy_size);
         state->frame_index += copy_size;
 
         if (release_frame)
         {
-            ESP_LOGD(TAG, "Finished send frame cleaning up");
+            ESP_LOGD(LOCAL_TAG, "Finished send frame cleaning up");
 
             state->frame_index = 0;
             state->send_boundary = true;
@@ -102,14 +102,14 @@ size_t handleChunkedResponse(MjpegStreamState *state, QueueHandle_t mjpegQueue, 
     // if all frame has been sent remove frame from queue and reset index
 
     // if we have no data return RESPONSE_TRY_AGAIN
-    ESP_LOGD(TAG, "Nothing ready to send");
+    ESP_LOGD(LOCAL_TAG, "Nothing ready to send");
 
     return RESPONSE_TRY_AGAIN;
 }
 
 void handleMjpeg(AsyncWebServerRequest *request, QueueHandle_t mjpegQueue)
 {
-    ESP_LOGI(TAG, "mjpeg client connected");
+    ESP_LOGI(LOCAL_TAG, "mjpeg client connected");
     // TODO create some object here to persist the state of the stream
     // to allow for multiple streams
     MjpegStreamState *state = new MjpegStreamState();
@@ -120,7 +120,7 @@ void handleMjpeg(AsyncWebServerRequest *request, QueueHandle_t mjpegQueue)
 
     request->onDisconnect([state]()
                           {
-                              ESP_LOGI(TAG, "mjpeg client disconnected");
+                              ESP_LOGI(LOCAL_TAG, "mjpeg client disconnected");
                               delete state; });
     response->addHeader("Access-Control-Allow-Origin", "*");
     request->send(response);

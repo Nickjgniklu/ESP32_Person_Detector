@@ -10,7 +10,7 @@
 #include <Message.h>
 #include "esp_task_wdt.h"
 #include "messages.h"
-#define TAG "AI_TASK"
+#define LOCAL_TAG "AI_TASK"
 typedef struct
 {
   QueueHandle_t jpegQueue;
@@ -44,7 +44,7 @@ TfLiteStatus initTFInterpreter()
   // Verify Version of Tf Micro matches Model's verson
   if (model->version() != TFLITE_SCHEMA_VERSION)
   {
-    error_reporter->Report(
+    ESP_LOGE(LOCAL_TAG,
         "Model provided is schema version %d not equal "
         "to supported version %d.",
         model->version(), TFLITE_SCHEMA_VERSION);
@@ -60,28 +60,28 @@ TfLiteStatus initTFInterpreter()
   TfLiteStatus allocate_status = interpreter->AllocateTensors();
   if (allocate_status != kTfLiteOk)
   {
-    error_reporter->Report("AllocateTensors() failed");
+    ESP_LOGE(LOCAL_TAG,"AllocateTensors() failed");
     return kTfLiteError;
   }
 
   // Get information about the memory area to use for the model's input.
   input = interpreter->input(0);
-  error_reporter->Report("Input Shape");
+  ESP_LOGI(LOCAL_TAG,"Input Shape");
   for (int i = 0; i < input->dims->size; i++)
   {
-    error_reporter->Report("%d", input->dims->data[i]);
+    ESP_LOGI(LOCAL_TAG,"%d", input->dims->data[i]);
   }
 
-  error_reporter->Report(TfLiteTypeGetName(input->type));
-  error_reporter->Report("Output Shape");
+  ESP_LOGI(LOCAL_TAG,"%s",TfLiteTypeGetName(input->type));
+  ESP_LOGI(LOCAL_TAG,"Output Shape");
 
   TfLiteTensor *output = interpreter->output(0);
   for (int i = 0; i < output->dims->size; i++)
   {
-    error_reporter->Report("%d", output->dims->data[i]);
+    ESP_LOGI(LOCAL_TAG,"%d", output->dims->data[i]);
   }
-  error_reporter->Report(TfLiteTypeGetName(output->type));
-  error_reporter->Report("Arena Used:%d bytes of memory", interpreter->arena_used_bytes());
+  ESP_LOGI(LOCAL_TAG,"%s",TfLiteTypeGetName(output->type));
+  ESP_LOGI(LOCAL_TAG,"Arena Used:%d bytes of memory", interpreter->arena_used_bytes());
   return kTfLiteOk;
 }
 void sendMessageToQueue(const String &pmessage, QueueHandle_t messageQueue)
@@ -92,7 +92,7 @@ void sendMessageToQueue(const String &pmessage, QueueHandle_t messageQueue)
   if (message.data == nullptr)
   {
     // Handle memory allocation failure
-    ESP_LOGE(TAG, "Failed to allocate memory for message");
+    ESP_LOGE(LOCAL_TAG, "Failed to allocate memory for message");
     return;
   }
   memccpy(message.data, pmessage.c_str(), 0, jsonLength);
@@ -105,28 +105,28 @@ void aiTask(void *pvParameters)
   QueueHandle_t jpegQueue = params->jpegQueue;
   QueueHandle_t messageQueue = params->messageQueue;
   JpegImage image;
-  ESP_LOGI(TAG, "Starting AI Task");
+  ESP_LOGI(LOCAL_TAG, "Starting AI Task");
   while (true)
   {
 
     if (xQueueReceive(jpegQueue, &image, 0) == pdTRUE)
     {
-      ESP_LOGI(TAG, "Received image of size %d", image.length);
-      ESP_LOGI(TAG, "Image decompress started");
+      ESP_LOGI(LOCAL_TAG, "Received image of size %d", image.length);
+      ESP_LOGI(LOCAL_TAG, "Image decompress started");
       fmt2rgb888(image.data, image.length, PIXFORMAT_JPEG, input->data.uint8);
-      ESP_LOGI(TAG, "Image decompressed");
+      ESP_LOGI(LOCAL_TAG, "Image decompressed");
       free(image.data);
       delay(10); // feed watchdog
-      ESP_LOGI(TAG, "Model invoking started");
+      ESP_LOGI(LOCAL_TAG, "Model invoking started");
       uint start = millis();
       esp_task_wdt_delete(xTaskGetCurrentTaskHandle());
       if (kTfLiteOk != interpreter->Invoke())
       {
-        ESP_LOGE(TAG, "Invoke failed.");
+        ESP_LOGE(LOCAL_TAG, "Invoke failed.");
       }
       else
       {
-        ESP_LOGI(TAG, "Invoke passed. Took : %d milliseconds", millis() - start);
+        ESP_LOGI(LOCAL_TAG, "Invoke passed. Took : %d milliseconds", millis() - start);
       }
       esp_task_wdt_add(xTaskGetCurrentTaskHandle());
 
@@ -135,7 +135,7 @@ void aiTask(void *pvParameters)
         TfLiteTensor *output = interpreter->output(i);
         for (int j = 0; j < output->dims->size; j++)
         {
-          ESP_LOGI(TAG, "Output Shape %d", output->dims->data[j]);
+          ESP_LOGI(LOCAL_TAG, "Output Shape %d", output->dims->data[j]);
         }
       }
       std::vector<std::pair<int8_t, int>> value_index_pairs;
@@ -143,15 +143,15 @@ void aiTask(void *pvParameters)
       TfLiteTensor *output = interpreter->output(0);
       int result = output->data.int8[0];
       float result_float = (result - modelLoader.get_quantization_zero_point()) * modelLoader.get_quantization_scale();
-      error_reporter->Report("Float result: %f", result_float);
+      ESP_LOGI(LOCAL_TAG,"Float result: %f", result_float);
       bool person = result_float > 0.15; // default_model_prediction_threshold;
       if (person)
       {
-        ESP_LOGI(TAG, "Person detected");
+        ESP_LOGI(LOCAL_TAG, "Person detected");
       }
       else
       {
-        ESP_LOGI(TAG, "No person detected");
+        ESP_LOGI(LOCAL_TAG, "No person detected");
       }
       String message = person ? "person" : "no_person";
 
@@ -168,17 +168,17 @@ void aiTask(void *pvParameters)
 /// @param jpegQueue freeRTOS queue if images to process
 void startAITask(QueueHandle_t jpegQueue, QueueHandle_t messageQueue)
 {
-  ESP_LOGI(TAG, "Starting AI Task");
-  ESP_LOGI(TAG, "Creating tensorflow interpreter");
+  ESP_LOGI(LOCAL_TAG, "Starting AI Task");
+  ESP_LOGI(LOCAL_TAG, "Creating tensorflow interpreter");
   TfLiteStatus initStatus = initTFInterpreter();
 
   if (initStatus != kTfLiteOk)
   {
-    ESP_LOGE(TAG, "Failed to initialize tensorflow interpreter, ai task will not start");
+    ESP_LOGE(LOCAL_TAG, "Failed to initialize tensorflow interpreter, ai task will not start");
   }else{
     
 
-  ESP_LOGI(TAG, "Created tensorflow interpreter");
+  ESP_LOGI(LOCAL_TAG, "Created tensorflow interpreter");
   AITaskParams_t *params = (AITaskParams_t *)malloc(sizeof(AITaskParams_t));
   params->jpegQueue = jpegQueue;
   params->messageQueue = messageQueue;
@@ -191,6 +191,6 @@ void startAITask(QueueHandle_t jpegQueue, QueueHandle_t messageQueue)
       NULL,      // Task handle
       1          // Run the on other core from wifi stuuff
   );
-  ESP_LOGI(TAG, "Initialized tensorflow interpreter");
+  ESP_LOGI(LOCAL_TAG, "Initialized tensorflow interpreter");
   }
 }

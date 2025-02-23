@@ -2,6 +2,7 @@
 #include "Message.h"
 #include <ArduinoJson.h>
 #include "messages.h"
+#define LOCAL_TAG "WEBSOCKET"
 typedef struct
 {
   QueueHandle_t messageQueue;
@@ -24,12 +25,12 @@ void handleWebSocketMessage(AsyncWebSocketClient *client, void *arg, uint8_t *da
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT)
   {
     data[len] = 0;
-    ESP_LOGI("WEBSOCKET", "Received message: '%s'", data);
+    ESP_LOGI(LOCAL_TAG, "Received message: '%s'", data);
     JsonDocument json;
     DeserializationError error = deserializeJson(json, data);
     if (error)
     {
-      ESP_LOGE("WEBSOCKET", "Received message not json: '%s'", data);
+      ESP_LOGE(LOCAL_TAG, "Received message not json: '%s'", data);
       return;
     }
     if (json.containsKey("requestType") && json["requestType"] == "sdInfo")
@@ -50,10 +51,10 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
   {
   case WS_EVT_CONNECT:
 
-    Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+    ESP_LOGI(LOCAL_TAG,"WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
     break;
   case WS_EVT_DISCONNECT:
-    Serial.printf("WebSocket client #%u disconnected\n", client->id());
+    ESP_LOGI(LOCAL_TAG,"WebSocket client #%u disconnected\n", client->id());
     break;
   case WS_EVT_DATA:
     handleWebSocketMessage(client, arg, data, len);
@@ -66,10 +67,10 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
 
 void setupWebSocket(AsyncWebSocket *ws, AsyncWebServer *server)
 {
-  ESP_LOGI("WEBSOCKET", "Setting up websocket");
+  ESP_LOGI(LOCAL_TAG, "Setting up websocket");
   ws->onEvent(onEvent);
   server->addHandler(ws);
-  ESP_LOGI("WEBSOCKET", "Websocket setup done");
+  ESP_LOGI(LOCAL_TAG, "Websocket setup done");
 }
 
 void startWebsocketTask(void *pvParameters)
@@ -77,7 +78,7 @@ void startWebsocketTask(void *pvParameters)
   WebsocketTaskParams_t *params = (WebsocketTaskParams_t *)pvParameters;
   QueueHandle_t messageQueue = params->messageQueue;
   AsyncWebSocket *ws = params->ws;
-  ESP_LOGI("WEBSOCKET", "Starting websocket task");
+  ESP_LOGI(LOCAL_TAG, "Starting websocket task");
 
   while (true)
   {
@@ -85,7 +86,7 @@ void startWebsocketTask(void *pvParameters)
       Message message;
       if (xQueueReceive(messageQueue, &message, portMAX_DELAY))
       {
-        ESP_LOGI("WEBSOCKET", "Sending message: %s", message.data);
+        ESP_LOGI(LOCAL_TAG, "Sending message: %s", message.data);
         if (ws->count() != 0)
         {
           ws->textAll(message.data);

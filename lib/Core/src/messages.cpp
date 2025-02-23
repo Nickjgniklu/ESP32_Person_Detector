@@ -2,7 +2,7 @@
 
 #include <ArduinoJson.h>
 
-#define TAG "MESSAGES"
+#define LOCAL_TAG "MESSAGES"
 
 String systemInfoMessage()
 {
