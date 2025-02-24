@@ -21,3 +21,14 @@ tasks:
     cmds:
     - task: build_ui
     - task: upload_fs
+  
+  upload_firmware:
+    desc: "Upload the firmware to the ESP32"
+    cmds:
+    - pio run --target upload --environment seeed_xiao_esp32s3
+
+  upload:
+    desc: "Upload the web UI and firmware to the ESP32"
+    cmds:
+    - task: upload_ui
+    - task: upload_firmware
