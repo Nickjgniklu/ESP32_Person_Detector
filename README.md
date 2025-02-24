@@ -77,3 +77,16 @@ pio test
 
 ## Decode saved mjpeg file
 `ffmpeg -i dump_jpeg.mjpeg -q:v 2 output_%06d.jpg`
+
+# Task shortcuts
+Install https://taskfile.dev/installation/
+
+run `task` to list current options
+ie
+```
+ESP32_Person_Detector> task
+task: Available tasks for this project:
+* build_ui:        Build and flash the web UI to the ESP32
+* upload_fs:       Upload the data folder to ESP32 SPIFFS
+* upload_ui:       Upload the web UI to the ESP32
+```

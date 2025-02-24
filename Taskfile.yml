@@ -1,0 +1,23 @@
+version: '3'
+
+tasks:
+  build_ui:
+    desc: "Build and flash the web UI to the ESP32"
+    dir: client
+    cmds:
+    - npm install
+    - npx vite build
+    - gzip ./dist/index.html
+    - cp ./dist/index.html.gz ../data/
+  
+  upload_fs:
+    desc: "Upload the data folder to ESP32 SPIFFS"
+    cmds:
+    - pio run --target buildfs --environment seeed_xiao_esp32s3
+    - pio run --target uploadfs --environment seeed_xiao_esp32s3
+
+  upload_ui:
+    desc: "Upload the web UI to the ESP32"
+    cmds:
+    - task: build_ui
+    - task: upload_fs
