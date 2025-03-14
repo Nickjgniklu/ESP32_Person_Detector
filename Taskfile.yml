@@ -13,7 +13,7 @@ tasks:
   upload_fs:
     desc: "Upload the data folder to ESP32 SPIFFS"
     cmds:
-    - pio run --target buildfs --environment seeed_xiao_esp32s3
+    - task: build_fs
     - pio run --target uploadfs --environment seeed_xiao_esp32s3
 
   upload_ui:
@@ -37,3 +37,23 @@ tasks:
     desc: "Upload the firmware to the ESP32 using OTA"
     cmds:
     - pio run --target upload --environment seeed_xiao_esp32s3 --upload-port esp32doorbell.local
+
+  ota_upload_fs:
+    desc: "Upload the data folder to ESP32 SPIFFS using OTA"
+    cmds:
+    - task: build_fs
+    - pio run --target uploadfs --environment seeed_xiao_esp32s3 --upload-port esp32doorbell.local
+
+  ota_upload:
+    desc: "Upload the firmware and SPIFFS to the ESP32 using OTA"
+    cmds:
+    - task: build_fs
+    - task: ota_firmware_upload
+    - echo "Waiting for ESP32 to reboot..."
+    - sleep 15 # wait for the ESP32 to reboot
+    - task: ota_upload_fs
+
+  build_fs:
+    desc: "Build the SPIFFS filesystem"
+    cmds:
+    - pio run --target buildfs --environment seeed_xiao_esp32s3
