@@ -32,3 +32,8 @@ tasks:
     cmds:
     - task: upload_ui
     - task: upload_firmware
+
+  ota_firmware_upload:
+    desc: "Upload the firmware to the ESP32 using OTA"
+    cmds:
+    - pio run --target upload --environment seeed_xiao_esp32s3 --upload-port esp32doorbell.local

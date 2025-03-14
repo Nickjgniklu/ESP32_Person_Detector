@@ -12,6 +12,7 @@
 #include "capture_task.h"
 #include "ai_task.h"
 #include "save_task.h"
+#include "ota_task.h"
 #include "SPIFFS.h"
 
 QueueHandle_t mjpegQueue;
@@ -32,8 +33,8 @@ void setupServer();
 void configureLogs()
 {
   esp_log_level_set("*", ESP_LOG_ERROR);
-  esp_log_level_set("MJPEG_STREAM", ESP_LOG_INFO);
-  // esp_log_level_set("SAVE_TASK", ESP_LOG_WARN);
+  //esp_log_level_set("MJPEG_STREAM", ESP_LOG_INFO);
+   esp_log_level_set("OTA_TASK", ESP_LOG_INFO);
   // esp_log_level_set("CAMERA_TASK", ESP_LOG_WARN);
   // esp_log_level_set("MODAL", ESP_LOG_WARN);
   // esp_log_level_set("MESSAGES", ESP_LOG_WARN);
@@ -66,6 +67,7 @@ void setup()
 
   startAITask(AIjpegQueue, messageQueue);
   startWebsocket(messageQueue, &ws, &server);
+  startOtaTask(); 
   
 }
 
