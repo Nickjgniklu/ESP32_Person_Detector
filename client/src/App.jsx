@@ -34,15 +34,21 @@ function App() {
 
       ws.onmessage = async  (event) => {
         let data;
+        let textData;
         try {
-          const decodedData = await event.data.text()
+          if (event.data instanceof Blob) {
+            textData = await event.data.text()
+          } else {
+            textData = event.data;
+          }
           try {
-            data = JSON.parse(decodedData);
+            data = JSON.parse(textData);
           } catch (jsonError) {
-            console.log( decodedData);
+            console.log( textData);
             return;
           }
         } catch (e) {
+          console.error( e);
           console.log("Failed to decode data:", event.data);
           return;
         }
