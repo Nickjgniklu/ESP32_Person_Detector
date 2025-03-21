@@ -19,29 +19,57 @@ function App() {
   }
 
   useEffect(() => {
-    const ws = new WebSocket(wsUrl);
+    let ws;
+    let reconnectInterval;
 
-    ws.onmessage = (event) => {
-      let data;
-      try {
-        data = JSON.parse(event.data);
-      } catch (e) {
-        console.log( event.data);
-        return;
-      }
+    const connectWebSocket = () => {
+      ws = new WebSocket(wsUrl);
 
-      if (data.responseType === 'prediction') {
-        setPrediction(data.prediction);
-        setProbability(data.probability);
-      }
-      if (data.responseType === 'sdInfo') {
-        setUsedBytes(data.usedBytes);
-      }
-      if (data.responseType === 'systemInfo') {
-        setUptime(data.uptimeMs);
-      }
-      setMessage(event.data); // Assuming the message is in a property called 'message'
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        if (reconnectInterval) {
+          clearInterval(reconnectInterval);
+          reconnectInterval = null;
+        }
+      };
+
+      ws.onmessage = (event) => {
+        let data;
+        try {
+          data = JSON.parse(event.data);
+        } catch (e) {
+          console.log(event.data);
+          return;
+        }
+
+        if (data.responseType === 'prediction') {
+          setPrediction(data.prediction);
+          setProbability(data.probability);
+        }
+        if (data.responseType === 'sdInfo') {
+          setUsedBytes(data.usedBytes);
+        }
+        if (data.responseType === 'systemInfo') {
+          setUptime(data.uptimeMs);
+        }
+        setMessage(event.data); // Assuming the message is in a property called 'message'
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        ws.close();
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket closed, attempting to reconnect...');
+        if (!reconnectInterval) {
+          reconnectInterval = setInterval(connectWebSocket, 5000); // Attempt to reconnect every 5 seconds
+        }
+      };
     };
+
+    connectWebSocket();
+
     const intervalId = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ requestType: 'sdInfo' }));
@@ -51,6 +79,9 @@ function App() {
 
     return () => {
       clearInterval(intervalId);
+      if (reconnectInterval) {
+        clearInterval(reconnectInterval);
+      }
       ws.close();
     };
   }, []);
