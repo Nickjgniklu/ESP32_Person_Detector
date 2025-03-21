@@ -34,11 +34,11 @@ void configureLogs()
 {
   esp_log_level_set("*", ESP_LOG_ERROR);
   //esp_log_level_set("MJPEG_STREAM", ESP_LOG_INFO);
-   esp_log_level_set("OTA_TASK", ESP_LOG_INFO);
+   //esp_log_level_set("OTA_TASK", ESP_LOG_INFO);
   // esp_log_level_set("CAMERA_TASK", ESP_LOG_WARN);
   // esp_log_level_set("MODAL", ESP_LOG_WARN);
   // esp_log_level_set("MESSAGES", ESP_LOG_WARN);
-  // esp_log_level_set("AI_TASK", ESP_LOG_WARN);
+  esp_log_level_set("AI_TASK", ESP_LOG_INFO);
   // esp_log_level_set("FILE_HELPERS", ESP_LOG_WARN);
 }
 void setup()
@@ -58,7 +58,31 @@ void setup()
   AIjpegQueue = jpegQueues[1] = xQueueCreate(1, sizeof(JpegImage));
   saveJpegQueue = jpegQueues[2] = xQueueCreate(2, sizeof(JpegImage));
 
-  messageQueue = xQueueCreate(1, sizeof(Message));
+  messageQueue = xQueueCreate(30, sizeof(Message));
+  esp_log_set_vprintf([](const char *fmt, va_list args) -> int {
+
+    //this function needs to be rentrant
+    // if the message queue has space create a message in it
+    int length = vprintf(fmt, args);
+    const uint maxLength = 100;
+
+    Message message;
+    message.data = (char *)malloc(maxLength);
+    if (message.data == nullptr)
+    {
+      return vprintf(fmt, args);
+    }
+
+    // For debugging, put "hello world" in the data field
+    int web_log_length =vsnprintf(message.data, maxLength, fmt, args); // format the message into the data field
+    message.length = web_log_length; // set the length of the message (including null terminator)
+
+    // if the queue is full this will silently fail to send the message
+    xQueueSend(messageQueue, &message, 0);
+
+
+    return length;
+  });
   startCaptureTask(jpegQueues, 3);
   startSaveTask(saveJpegQueue);
 

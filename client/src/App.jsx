@@ -22,7 +22,14 @@ function App() {
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (e) {
+        console.log( event.data);
+        return;
+      }
+
       if (data.responseType === 'prediction') {
         setPrediction(data.prediction);
         setProbability(data.probability);
@@ -32,7 +39,6 @@ function App() {
       }
       if (data.responseType === 'systemInfo') {
         setUptime(data.uptimeMs);
-
       }
       setMessage(event.data); // Assuming the message is in a property called 'message'
     };
