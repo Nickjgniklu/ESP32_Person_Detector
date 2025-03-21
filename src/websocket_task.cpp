@@ -89,7 +89,7 @@ void startWebsocketTask(void *pvParameters)
         ESP_LOGI(LOCAL_TAG, "Sending message: %s", message.data);
         if (ws->count() != 0)
         {
-          ws->textAll(message.data);
+          ws->binaryAll(message.data);
         }
         free(message.data);
       }

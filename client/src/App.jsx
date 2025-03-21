@@ -15,7 +15,6 @@ function App() {
   if (import.meta.env.MODE === 'development') {
     mjpegUrl = `http://${mjpegUrl}`
     wsUrl = `ws://${wsUrl}`;
-
   }
 
   useEffect(() => {
@@ -33,12 +32,18 @@ function App() {
         }
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async  (event) => {
         let data;
         try {
-          data = JSON.parse(event.data);
+          const decodedData = await event.data.text()
+          try {
+            data = JSON.parse(decodedData);
+          } catch (jsonError) {
+            console.log( decodedData);
+            return;
+          }
         } catch (e) {
-          console.log(event.data);
+          console.log("Failed to decode data:", event.data);
           return;
         }
 
@@ -52,7 +57,7 @@ function App() {
         if (data.responseType === 'systemInfo') {
           setUptime(data.uptimeMs);
         }
-        setMessage(event.data); // Assuming the message is in a property called 'message'
+        setMessage(data.message); // Assuming the message is in a property called 'message'
       };
 
       ws.onerror = (error) => {
@@ -86,10 +91,17 @@ function App() {
     };
   }, []);
 
+  const handleMjpegError = (event) => {
+    console.error('MJPEG stream error:', event);
+    setTimeout(() => {
+      event.target.src = event.target.src + "?force_reload=" + Date.now(); // Reload the image
+    }, 5000); // Attempt to reload every 5 seconds
+  };
+
   return (
     <div className="App">
       <header className="App-header">
-        <img src={mjpegUrl} alt="MJPEG Stream" />
+        <img src={mjpegUrl} alt="MJPEG Stream" onError={handleMjpegError} />
         <p>prediction: {prediction}</p>
         <p>probability: {probability}</p>
         <p>usedBytes: {usedBytes}</p>

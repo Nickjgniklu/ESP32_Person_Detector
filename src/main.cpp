@@ -75,7 +75,7 @@ void setup()
 
     // For debugging, put "hello world" in the data field
     int web_log_length =vsnprintf(message.data, maxLength, fmt, args); // format the message into the data field
-    message.length = web_log_length; // set the length of the message (including null terminator)
+    message.length = web_log_length+ 1; // set the length of the message (including null terminator)
 
     // if the queue is full this will silently fail to send the message
     xQueueSend(messageQueue, &message, 0);
