@@ -14,6 +14,7 @@
 #include "save_task.h"
 #include "ota_task.h"
 #include "SPIFFS.h"
+#include <SD.h>
 
 QueueHandle_t mjpegQueue;
 QueueHandle_t saveJpegQueue;
@@ -30,6 +31,7 @@ const int daylightOffset_sec = 3600;
 void notFound(AsyncWebServerRequest *request);
 void setupWifi();
 void setupServer();
+void listFiles(AsyncWebServerRequest *request);
 void configureLogs()
 {
   esp_log_level_set("*", ESP_LOG_ERROR);
@@ -113,6 +115,100 @@ void sendUI(AsyncWebServerRequest *request)
   request->send(response);
 }
 
+void listFiles(AsyncWebServerRequest *request)
+{
+  if (!SD.begin())
+  {
+    request->send(500, "text/plain", "SD Card Mount Failed");
+    return;
+  }
+
+  File root = SD.open("/");
+  if (!root)
+  {
+    request->send(500, "text/plain", "Failed to open directory");
+    return;
+  }
+  if (!root.isDirectory())
+  {
+    request->send(500, "text/plain", "Not a directory");
+    return;
+  }
+
+  String output = "<html><body><h1>Files:</h1><ul>";
+  File file = root.openNextFile();
+  int fileCount = 0;
+  while (file && fileCount < 10)
+  {
+    if (file.isDirectory())
+    {
+      output += "<li><b>DIR</b> ";
+      output += file.name();
+      output += "</li>";
+    }
+    else
+    {
+      output += "<li><a href=\"/download?filename=";
+      output += file.name();
+      output += "\">";
+      output += file.name();
+      output += "</a> (";
+      output += file.size();
+      output += " bytes)</li>";
+    }
+    file = root.openNextFile();
+    fileCount++;
+  }
+  output += "</ul></body></html>";
+
+  request->send(200, "text/html", output);
+}
+
+void downloadFile(AsyncWebServerRequest *request)
+{
+  if (!request->hasParam("filename"))
+  {
+    request->send(400, "text/plain", "Bad Request");
+    return;
+  }
+
+  String filename = request->getParam("filename")->value();
+  File file = SD.open(filename);
+  if (!file)
+  {
+    request->send(404, "text/plain", "File Not Found");
+    return;
+  }
+
+  AsyncWebServerResponse *response = request->beginResponse(SD, filename, "application/octet-stream");
+  request->send(response);
+}
+
+void deleteFile(AsyncWebServerRequest *request)
+{
+  if (!request->hasParam("filename"))
+  {
+    request->send(400, "text/plain", "Bad Request");
+    return;
+  }
+
+  String filename = request->getParam("filename")->value();
+  if (!SD.exists(filename))
+  {
+    request->send(404, "text/plain", "File Not Found");
+    return;
+  }
+
+  if (SD.remove(filename))
+  {
+    request->send(200, "text/plain", "File Deleted");
+  }
+  else
+  {
+    request->send(500, "text/plain", "Failed to Delete File");
+  }
+}
+
 void setupWifi()
 {
   WiFi.mode(WIFI_STA);
@@ -134,6 +230,9 @@ void setupServer()
   server.on("/mjpeg", HTTP_GET, [](AsyncWebServerRequest *request)
             { handleMjpeg(request, mjpegQueue); });
   server.on("/", sendUI);
+  server.on("/listFiles", HTTP_GET, listFiles);
+  server.on("/download", HTTP_GET, downloadFile);
+  server.on("/delete", HTTP_GET, deleteFile); // Add this line
 
   server.onNotFound(notFound);
   server.begin();

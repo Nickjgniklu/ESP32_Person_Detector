@@ -57,3 +57,27 @@ tasks:
     desc: "Build the SPIFFS filesystem"
     cmds:
     - pio run --target buildfs --environment seeed_xiao_esp32s3
+
+  decode_mjpeg:
+    desc: Check if winget is installed and decode all MJPEG files in a directory using ffmpeg.
+    vars:
+      input_dir: .
+    cmds:
+      - powershell: |
+          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            Write-Host "winget is not installed. Please install winget to use this task.";
+            exit 1;
+          }
+          Write-Host "winget is installed. Processing MJPEG files...";
+          $outputDir = Join-Path "{{.input_dir}}" "output_jpegs";
+          if (!(Test-Path $outputDir)) {
+            New-Item -ItemType Directory -Path $outputDir | Out-Null;
+            Write-Host "Created output directory: $outputDir";
+          }
+          Get-ChildItem -Path "{{.input_dir}}" -Filter *.mjpeg | ForEach-Object {
+            $inputFile = $_.FullName;
+            $outputFile = Join-Path $outputDir "$($_.BaseName)_%06d.jpg";
+            Write-Host "Processing file: $inputFile";
+            ffmpeg -i $inputFile -q:v 2 $outputFile;
+          }
+          Write-Host "Processing complete. Output files are in: $outputDir";
