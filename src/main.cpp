@@ -34,7 +34,7 @@ void setupServer();
 void listFiles(AsyncWebServerRequest *request);
 void configureLogs()
 {
-  esp_log_level_set("*", ESP_LOG_INFO);
+  esp_log_level_set("*", ESP_LOG_WARN);
   //esp_log_level_set("MJPEG_STREAM", ESP_LOG_INFO);
    //esp_log_level_set("OTA_TASK", ESP_LOG_INFO);
   // esp_log_level_set("CAMERA_TASK", ESP_LOG_WARN);
@@ -86,14 +86,14 @@ void setup()
     return length;
   });
   startCaptureTask(jpegQueues, 3);
-  //startSaveTask(saveJpegQueue);
+  startSaveTask(saveJpegQueue);
 
   setupWifi();
   setupServer();
 
   //startAITask(AIjpegQueue, messageQueue);
-  //startWebsocket(messageQueue, &ws, &server);
-  //startOtaTask(); 
+    startWebsocket(messageQueue, &ws, &server);
+  // startOtaTask(); 
   
 }
 

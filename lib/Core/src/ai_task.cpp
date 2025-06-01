@@ -17,7 +17,7 @@ typedef struct
   QueueHandle_t messageQueue;
 } AITaskParams_t;
 
-uint raw_image_size = 800 * 600 * 3;
+uint raw_image_size = 480*320 * 3;
 
 /// @brief holds rgb image data
 namespace
